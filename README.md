@@ -16,8 +16,26 @@ Everything runs locally in the browser – **no images are ever uploaded.**
 - **Live preview** of the actual pixelation under the cursor (desktop) plus a brush ring.
 - **Zoom & pan**: two fingers on touch, trackpad pinch / mouse wheel on desktop.
 - **Reset & fit**, and a fully collapsible menu. (To correct a region, switch the tool to *Erase*.)
+- **Privacy modes** (*Standard* / *Secure*): see below.
 - **Save**: share sheet on iOS/iPadOS ("Save to Photos"), direct download on desktop.
 - **Offline-capable** via a service worker (cache-first).
+
+## Privacy: pixelation is not unbreakable
+
+Plain pixelation is just a low-pass average, so a pixelated face stays surprisingly
+identifiable — even machine "de-pixelation" / face-matching can recover identity,
+especially via the *parrot attack* (the attacker pixelates their own reference photos
+the same way and matches). In a quick 1-NN test on the Olivetti faces (40 people, chance
+2.5 %), even a **2×2** mosaic over the face reached ~48 % identification, and 8×8 reached
+~85 %.
+
+The **Secure** mode hardens the mosaic against this by adding, per tile, a **random grid
+offset + brightness jitter + noise + colour quantisation** — randomness the attacker
+cannot reproduce. In the same test this dropped 8×8 recognition from ~85 % to ~22 %, and
+very coarse + Secure to ~7–13 %.
+
+For a hard guarantee, **fully removing** the region (a solid opaque block) is the only
+method that drops to chance level. Coarser blocks + Secure get close, but never to zero.
 
 ## How it works
 

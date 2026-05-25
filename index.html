@@ -140,6 +140,12 @@
     <button data-block="128">128</button>
   </div>
 
+  <div class="lbl">Privacy <span class="val" id="secNote">standard mosaic</span></div>
+  <div class="seg" id="secSeg">
+    <button data-sec="off" class="on">Standard</button>
+    <button data-sec="on">Secure</button>
+  </div>
+
   <div class="lbl">Tool</div>
   <div class="seg" id="modeSeg">
     <button data-mode="paint" class="on">Paint</button>
@@ -201,13 +207,32 @@ function applyTransform(){
 // ---------- Mosaik vorberechnen --------------------------------------------
 // Das Mosaik wird NUR in Blockauflösung gespeichert (eine Farbe je Kachel) –
 // spart fast eine ganze Voll-Canvas. Beim Anzeigen scharf hochskaliert.
-let block=16;
+let block=16, secure=false;
 function buildMosaic(){
   const bw=Math.max(1,Math.round(imgW/block)), bh=Math.max(1,Math.round(imgH/block));
   mosaic.width=bw; mosaic.height=bh;
   mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
   mctx.clearRect(0,0,bw,bh);
-  mctx.drawImage(base,0,0,bw,bh);                      // Durchschnittsfarbe je Block
+  if(!secure){
+    mctx.drawImage(base,0,0,bw,bh);                    // Durchschnittsfarbe je Block
+    return;
+  }
+  // Secure-Modus: macht das Mosaik gegen Rück-Erkennung (Parrot-Matching) robust.
+  // 1) zufälliger Raster-Versatz – der exakte Block-Raster ist nicht reproduzierbar
+  const bs=imgW/bw;
+  const ox=Math.floor(Math.random()*bs), oy=Math.floor(Math.random()*bs);
+  mctx.drawImage(base, ox,oy, imgW-ox, imgH-oy, 0,0, bw,bh);
+  // 2) pro Block: Helligkeits-Jitter + Rauschen + Farbquantisierung (zerstört das
+  //    feine Tiefpass-Signal, das Gesichtserkenner zum Zuordnen nutzen)
+  const im=mctx.getImageData(0,0,bw,bh), p=im.data, Q=48;
+  for(let k=0;k<p.length;k+=4){
+    const jit=1+(Math.random()*2-1)*0.30, nz=(Math.random()*2-1)*50;
+    for(let c=0;c<3;c++){
+      let v=Math.round((p[k+c]*jit+nz)/Q)*Q;           // jittern, rauschen, quantisieren
+      p[k+c]=v<0?0:v>255?255:v;
+    }
+  }
+  mctx.putImageData(im,0,0);
 }
 // Block-Mosaik scharf (ohne Glättung) in ein Ziel-Rechteck (Bildkoordinaten) zeichnen.
 // Die Quell-Abbildung ist linear identisch zum Voll-Mosaik → keine Nähte bei Teilflächen.
@@ -443,6 +468,14 @@ document.getElementById('modeSeg').onclick=e=>{
 document.getElementById('blockSeg').onclick=e=>{
   const b=e.target.closest('button'); if(!b) return;
   block=+b.dataset.block;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+  if(hasImage){ buildMosaic(); rebuildOver(); }
+};
+const secNote=document.getElementById('secNote');
+document.getElementById('secSeg').onclick=e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  secure=(b.dataset.sec==='on');
+  secNote.textContent = secure ? 'noise + jitter + offset' : 'standard mosaic';
   [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
   if(hasImage){ buildMosaic(); rebuildOver(); }
 };
