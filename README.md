@@ -1,64 +1,62 @@
 # Deface
 
-Eine schlanke Progressive Web App zum **Verpixeln (Mosaik) von Bildbereichen** – ideal,
-um Gesichter, Kennzeichen oder andere sensible Stellen auf Fotos unkenntlich zu machen.
-Läuft komplett **offline** und lässt sich auf dem iPhone als Homescreen-App installieren.
+A lightweight Progressive Web App for **pixelating (mosaicing) areas of an image** –
+ideal for obscuring faces, license plates, or other sensitive details in photos.
+Works fully **offline** and can be installed as a home-screen app on iPhone.
 
-Alles passiert lokal im Browser – **es werden keine Bilder hochgeladen.**
+Everything runs locally in the browser – **no images are ever uploaded.**
 
-## Funktionen
+## Features
 
-- **Bild laden** (JPG/PNG), automatisch auf max. 4000 px lange Kante skaliert.
-- **Verpixeln & Radieren** mit dem Finger (ein Finger) – Mosaik wird über eine weiche
-  Pinselmaske sichtbar gemacht.
-- **Pixel-Grösse** wählbar (4 / 16 / 32 / 64 / 128).
-- **Pinselgrösse** bild-bezogen (bleibt beim Zoomen relativ zum Bildinhalt) und
-  einstellbare **Pinselkante** (weicher → harter radialer Verlauf).
-- **Live-Vorschau** der echten Verpixelung unter dem Cursor (Desktop) inkl. Pinselring.
-- **Zoom & verschieben**: zwei Finger auf Touch, Trackpad-Pinch / Mausrad auf dem Desktop.
-- **Undo, Reset, Anpassen** sowie ein vollständig ein-/ausblendbares Menü.
-- **Sichern**: Teilen-Dialog auf iOS/iPadOS („In Fotos sichern"), direkter Download
-  auf dem Desktop.
-- **Offline-fähig** dank Service Worker (Cache-First).
+- **Load an image** (JPG/PNG), automatically scaled to a max long edge of 4000 px.
+- **Pixelate & erase** with one finger – the mosaic is revealed through a soft brush mask.
+- **Pixel size** selectable (4 / 16 / 32 / 64 / 128).
+- **Brush size** is image-relative (stays tied to image content while zooming) and the
+  **brush edge** is adjustable (soft → hard radial falloff).
+- **Live preview** of the actual pixelation under the cursor (desktop) plus a brush ring.
+- **Zoom & pan**: two fingers on touch, trackpad pinch / mouse wheel on desktop.
+- **Undo, reset, fit**, and a fully collapsible menu.
+- **Save**: share sheet on iOS/iPadOS ("Save to Photos"), direct download on desktop.
+- **Offline-capable** via a service worker (cache-first).
 
-## Technik
+## How it works
 
-Reines HTML/CSS/JavaScript ohne Build-Schritt oder Abhängigkeiten:
+Plain HTML/CSS/JavaScript, no build step and no dependencies:
 
-| Datei | Zweck |
+| File | Purpose |
 |---|---|
-| `index.html` | komplette App (UI + Logik) |
-| `sw.js` | Service Worker (Offline-Cache der App-Hülle) |
-| `manifest.webmanifest` | PWA-Manifest (Name, Icons, Farben) |
-| `icons/` | App-Icons (192 / 512 / maskable / Apple-Touch) |
+| `index.html` | the whole app (UI + logic) |
+| `sw.js` | service worker (offline cache of the app shell) |
+| `manifest.webmanifest` | PWA manifest (name, icons, colors) |
+| `icons/` | app icons (192 / 512 / maskable / Apple touch) |
 
-Die Verpixelung arbeitet mit mehreren Canvas-Ebenen: Original, vorberechnetes Mosaik
-und eine reine Alpha-Maske. Gemalt wird rAF-gedrosselt; nur der betroffene Bildbereich
-wird neu zusammengesetzt – das hält die App auch auf dem iPhone flüssig.
+Pixelation uses several canvas layers: the original, a precomputed mosaic, and a pure
+alpha mask. Painting is throttled with `requestAnimationFrame`, and only the affected
+region is recomposited – keeping the app smooth even on iPhone.
 
-## Lokal starten
+## Run locally
 
-Ein beliebiger statischer Server genügt, z. B.:
+Any static server works, e.g.:
 
 ```bash
 python3 -m http.server 8000
-# danach http://localhost:8000 öffnen
+# then open http://localhost:8000
 ```
 
-> Der Service Worker (und damit der Offline-Betrieb) registriert sich nur über
-> **HTTPS** oder `localhost`.
+> The service worker (and therefore offline support) only registers over
+> **HTTPS** or `localhost`.
 
-## Auf dem iPhone installieren
+## Install on iPhone
 
-1. Die App über **HTTPS** ausliefern (z. B. GitHub Pages).
-2. In **Safari** öffnen → **Teilen** → **Zum Home-Bildschirm**.
-3. Die App startet danach im Vollbild und funktioniert offline.
+1. Serve the app over **HTTPS** (e.g. GitHub Pages).
+2. Open it in **Safari** → **Share** → **Add to Home Screen**.
+3. The app then launches full-screen and works offline.
 
-### Mit GitHub Pages veröffentlichen
+### Publish with GitHub Pages
 
-In den Repo-**Settings → Pages** als Quelle den `main`-Branch (Ordner `/root`) wählen.
-Die App ist dann unter `https://<user>.github.io/deface/` erreichbar.
+In the repo **Settings → Pages**, set the source to the `main` branch (folder `/root`).
+The app will then be available at `https://<user>.github.io/deface/`.
 
-## Lizenz
+## License
 
 [MIT](LICENSE) © 2026 Ben Pohl

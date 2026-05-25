@@ -1,7 +1,7 @@
 {
   "name": "Deface",
   "short_name": "Deface",
-  "description": "JPG laden, mit zwei Fingern zoomen, mit einem Finger Bereiche verpixeln (Mosaik) und als JPG sichern.",
+  "description": "Load a photo, zoom with two fingers, pixelate (mosaic) areas with one finger, and save as JPG.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
