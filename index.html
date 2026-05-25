@@ -225,7 +225,7 @@ function rebuildOver(){
 // Statt eines vollen GPU-Canvas pro Schritt sichern wir nur den Alpha-Kanal
 // der Maske als Uint8Array im normalen RAM. Das vermeidet den iOS-Absturz
 // durch zu viele/zu grosse Canvas-Backings.
-const undoStack=[]; const UNDO_MAX=12;   // 12 MP × 12 ≈ 144 MB RAM (kein GPU)
+const undoStack=[]; const UNDO_MAX = mouseHover ? 12 : 6;   // auf Touch weniger Verlauf = weniger RAM
 function pushUndo(){
   try{
     const d=kctx.getImageData(0,0,imgW,imgH).data;
@@ -421,7 +421,9 @@ function scheduleTransform(){
 }
 
 // ---------- Laden (mit Downscale + EXIF-Orientierung) ----------------------
-const MAX_EDGE=4000;   // lange Kante; höher = mehr GPU-Speicher (Absturzrisiko iOS)
+// Touch-Geräte (iPhone) bekommen weniger Auflösung – sonst sprengt der
+// Canvas-Stack beim Pinch-Zoom den GPU-Speicher. Desktop behält volle Qualität.
+const MAX_EDGE = mouseHover ? 4000 : 2600;
 const fileEl=document.getElementById('file');
 document.getElementById('load').onclick=()=>fileEl.click();
 fileEl.onchange=async e=>{
