@@ -229,8 +229,9 @@ function buildMosaic(){
   //    Hauttöne dürfen tauschen (zerstört die Augen/Mund-Lage), Grün vom Gras
   //    bleibt draussen → das lokale Farbspektrum wird respektiert.
   const im=mctx.getImageData(0,0,bw,bh), p=im.data, CT2=0.006;
-  // Stärke = REICHWEITE der Verschiebung → Grad der Verunstaltung (1 = kaum, 11 = stark)
-  const R=1+Math.round(secStrength*10), PASSES=2;
+  // Stärke = REICHWEITE der Verschiebung → Grad der Verunstaltung (1 = kaum, 6 = stark).
+  // Darüber ändert sich kaum noch etwas, daher mappt der ganze Slider auf 1…6.
+  const R=1+Math.round(secStrength*5), PASSES=2;
   for(let pass=0; pass<PASSES; pass++){
     for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
       const a=(y*bw+x)*4, sa=p[a]+p[a+1]+p[a+2]+1;
