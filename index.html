@@ -206,7 +206,7 @@ function applyTransform(){
 // ---------- Mosaik vorberechnen --------------------------------------------
 // Das Mosaik wird NUR in Blockauflösung gespeichert (eine Farbe je Kachel) –
 // spart fast eine ganze Voll-Canvas. Beim Anzeigen scharf hochskaliert.
-let block=16, secStep=0;   // 0 = aus · 1–6 = Verunstaltungsgrad (Radius) · 7 = QR-Muster
+let block=16, secStep=0;   // 0 = aus · 1–6 = Verunstaltungsgrad (Radius) · 7 = Volltonblock
 function buildMosaic(){
   const bw=Math.max(1,Math.round(imgW/block)), bh=Math.max(1,Math.round(imgH/block));
   mosaic.width=bw; mosaic.height=bh;
@@ -219,11 +219,18 @@ function buildMosaic(){
     return;
   }
   if(secStep>=7){
-    // QR-Modus: zufälliges Schwarz/Weiss-Raster ersetzt alles → keine Bild-
-    // information mehr (maximaler Schutz, lenkt Erkenner ab).
-    const im=mctx.createImageData(bw,bh), p=im.data;
-    for(let i=0,k=0;i<bw*bh;i++,k+=4){ const v=Math.random()<0.5?0:255; p[k]=p[k+1]=p[k+2]=v; p[k+3]=255; }
-    mctx.putImageData(im,0,0);
+    // Volltonblock: eine deckende Farbe = maskengewichteter Mittelwert der
+    // bemalten Fläche (zentrale Pixel-Mischung). Keine Struktur mehr → sicher.
+    mctx.drawImage(base,0,0,bw,bh);                         // erst normales Block-Mosaik
+    const md=mctx.getImageData(0,0,bw,bh).data;
+    ptctx.clearRect(0,0,bw,bh); ptctx.imageSmoothingEnabled=true;
+    ptctx.drawImage(mask,0,0,mask.width,mask.height,0,0,bw,bh);   // Maske auf Blockraster
+    const ad=ptctx.getImageData(0,0,bw,bh).data;
+    let sr=0,sg=0,sb=0,sa=0;
+    for(let i=0,k=0;i<bw*bh;i++,k+=4){ const a=ad[k+3]; sr+=md[k]*a; sg+=md[k+1]*a; sb+=md[k+2]*a; sa+=a; }
+    if(sa===0){ for(let i=0,k=0;i<bw*bh;i++,k+=4){ sr+=md[k]; sg+=md[k+1]; sb+=md[k+2]; } sa=bw*bh; }
+    mctx.fillStyle=`rgb(${sr/sa|0},${sg/sa|0},${sb/sa|0})`;
+    mctx.fillRect(0,0,bw,bh);
     return;
   }
   // Secure-Modus: behält die natürliche Kachel-Palette, zerstört aber die
@@ -503,7 +510,7 @@ const secEl=document.getElementById('sec'), secNote=document.getElementById('sec
 let secPending=false;
 secEl.oninput=()=>{
   secStep=+secEl.value;
-  secNote.textContent = secStep===0 ? 'off' : secStep===7 ? 'QR pattern' : 'scramble '+secStep+'/6';
+  secNote.textContent = secStep===0 ? 'off' : secStep===7 ? 'solid block' : 'scramble '+secStep+'/6';
   if(hasImage && !secPending){          // live, aber max. 1× pro Frame
     secPending=true;
     requestAnimationFrame(()=>{ secPending=false; buildMosaic(); rebuildOver(); });
