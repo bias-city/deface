@@ -213,9 +213,8 @@ let block=16, secure=false;
 function buildMosaic(){
   const bw=Math.max(1,Math.round(imgW/block)), bh=Math.max(1,Math.round(imgH/block));
   mosaic.width=bw; mosaic.height=bh;
-  // Alpha-Raster FEINER als die Farb-Blöcke (= Maskenauflösung), damit der
-  // radiale Verlauf weich stuft, während die Farbe grob in Blöcken bleibt.
-  cell.width=mask.width; cell.height=mask.height; ptmp.width=mask.width; ptmp.height=mask.height;
+  // Alpha auf demselben Raster wie die Farbe: 1 Alpha je GANZER Kachel.
+  cell.width=bw; cell.height=bh; ptmp.width=bw; ptmp.height=bh;
   mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
   mctx.clearRect(0,0,bw,bh);
   if(!secure){
@@ -256,9 +255,9 @@ function composeCell(){
   cctx.globalCompositeOperation='source-over';
   cctx.imageSmoothingEnabled=false;
   cctx.clearRect(0,0,cell.width,cell.height);
-  cctx.drawImage(mosaic,0,0,mosaic.width,mosaic.height,0,0,cell.width,cell.height);  // grobe Blockfarben (nearest)
+  cctx.drawImage(mosaic,0,0);                                            // Blockfarben (1:1)
   cctx.globalCompositeOperation='destination-in';
-  cctx.imageSmoothingEnabled=false;                                      // feines Alpha-Raster, 1:1 zur Maske
+  cctx.imageSmoothingEnabled=true;                                       // Maske auf Kachelraster mitteln → 1 Alpha je Kachel
   cctx.drawImage(mask, 0,0,mask.width,mask.height, 0,0,cell.width,cell.height);
   cctx.globalCompositeOperation='source-over';
 }
