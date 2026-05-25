@@ -15,7 +15,7 @@ Everything runs locally in the browser – **no images are ever uploaded.**
   **brush edge** is adjustable (soft → hard radial falloff).
 - **Live preview** of the actual pixelation under the cursor (desktop) plus a brush ring.
 - **Zoom & pan**: two fingers on touch, trackpad pinch / mouse wheel on desktop.
-- **Undo, reset, fit**, and a fully collapsible menu.
+- **Reset & fit**, and a fully collapsible menu. (To correct a region, switch the tool to *Erase*.)
 - **Save**: share sheet on iOS/iPadOS ("Save to Photos"), direct download on desktop.
 - **Offline-capable** via a service worker (cache-first).
 
@@ -30,9 +30,13 @@ Plain HTML/CSS/JavaScript, no build step and no dependencies:
 | `manifest.webmanifest` | PWA manifest (name, icons, colors) |
 | `icons/` | app icons (192 / 512 / maskable / Apple touch) |
 
-Pixelation uses several canvas layers: the original, a precomputed mosaic, and a pure
-alpha mask. Painting is throttled with `requestAnimationFrame`, and only the affected
-region is recomposited – keeping the app smooth even on iPhone.
+Pixelation uses a few canvas layers: the full-resolution original, a mosaic stored at
+**block resolution only** (one color per tile, scaled up sharply for display), and an
+alpha mask kept at **reduced resolution** (upscaled smoothly so brush edges stay soft).
+Keeping the mosaic and mask small – and dropping a heavy undo history in favor of the
+eraser – keeps memory low enough to avoid the iOS canvas-memory limit during pinch-zoom.
+Painting is throttled with `requestAnimationFrame`, and only the affected region is
+recomposited – keeping the app smooth even on iPhone.
 
 ## Run locally
 
