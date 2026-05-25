@@ -228,17 +228,21 @@ function buildMosaic(){
   //    Vergleich über Chromatizität (helligkeitsunabhängig): helle und dunkle
   //    Hauttöne dürfen tauschen (zerstört die Augen/Mund-Lage), Grün vom Gras
   //    bleibt draussen → das lokale Farbspektrum wird respektiert.
-  const im=mctx.getImageData(0,0,bw,bh), p=im.data, R=3, CT2=0.006;
-  const PASSES=Math.max(1,Math.round(secStrength*5));   // Stärke = Anzahl Durchmisch-Durchläufe
+  const im=mctx.getImageData(0,0,bw,bh), p=im.data, CT2=0.006;
+  // Stärke = REICHWEITE der Verschiebung → Grad der Verunstaltung (1 = kaum, 11 = stark)
+  const R=1+Math.round(secStrength*10), PASSES=2;
   for(let pass=0; pass<PASSES; pass++){
     for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
-      const x2=Math.min(bw-1,Math.max(0, x + (Math.random()*(2*R+1)|0) - R));
-      const y2=Math.min(bh-1,Math.max(0, y + (Math.random()*(2*R+1)|0) - R));
-      const a=(y*bw+x)*4, b=(y2*bw+x2)*4;
-      const sa=p[a]+p[a+1]+p[a+2]+1, sb=p[b]+p[b+1]+p[b+2]+1;     // Farbton statt Helligkeit
-      const dr=p[a]/sa-p[b]/sb, dg=p[a+1]/sa-p[b+1]/sb, db=p[a+2]/sa-p[b+2]/sb;
-      if(dr*dr+dg*dg+db*db > CT2) continue;            // anderer Farbton → nicht tauschen
-      for(let c=0;c<4;c++){ const t=p[a+c]; p[a+c]=p[b+c]; p[b+c]=t; }
+      const a=(y*bw+x)*4, sa=p[a]+p[a+1]+p[a+2]+1;
+      for(let tr=0; tr<5; tr++){                       // bis zu 5 Kandidaten im Radius probieren
+        const x2=Math.min(bw-1,Math.max(0, x + (Math.random()*(2*R+1)|0) - R));
+        const y2=Math.min(bh-1,Math.max(0, y + (Math.random()*(2*R+1)|0) - R));
+        const b=(y2*bw+x2)*4, sb=p[b]+p[b+1]+p[b+2]+1;
+        const dr=p[a]/sa-p[b]/sb, dg=p[a+1]/sa-p[b+1]/sb, db=p[a+2]/sa-p[b+2]/sb;
+        if(dr*dr+dg*dg+db*db>CT2) continue;            // anderer Farbton → nächster Kandidat
+        for(let c=0;c<4;c++){ const t=p[a+c]; p[a+c]=p[b+c]; p[b+c]=t; }
+        break;                                         // mit erstem gleichfarbigen tauschen
+      }
     }
   }
   mctx.putImageData(im,0,0);
