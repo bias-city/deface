@@ -97,6 +97,14 @@
   .row .primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
   .row button:disabled{opacity:.35;pointer-events:none;}
   input[type=file]{display:none;}
+
+  /* Dezenter Credit-Link unten links (vom Menü-Sheet verdeckt, wenn offen) */
+  .credit{
+    position:absolute;z-index:14;left:14px;bottom:calc(env(safe-area-inset-bottom) + 12px);
+    font-size:11px;font-weight:600;letter-spacing:.16em;text-decoration:none;
+    color:var(--muted);opacity:.75;padding:4px 2px;transition:color .15s,opacity .15s;
+  }
+  .credit:hover{ color:var(--accent);opacity:1; }
 </style>
 </head>
 <body>
@@ -150,6 +158,8 @@
     <button id="reset" disabled>Reset</button>
   </div>
 </div>
+
+<a class="credit" href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a>
 
 <input type="file" id="file" accept="image/jpeg,image/*">
 
