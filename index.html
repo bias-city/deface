@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0d0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pixelate">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Pixelate</title>
+<style>
+  :root{
+    --bg:#0d0e14; --panel:#161823; --surface:#1b1d29; --line:#262a38;
+    --ink:#e9eaf0; --muted:#7b8298; --accent:#8b7df5; --accent-ink:#10111a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+    height:100dvh; -webkit-font-smoothing:antialiased;
+  }
+
+  /* Bühne füllt den ganzen Screen; im Paint-Modus ist nur sie sichtbar */
+  .stage{
+    position:absolute;inset:0;overflow:hidden;touch-action:none;
+    background:repeating-conic-gradient(#15161f 0% 25%,#0f1018 0% 50%) 50%/24px 24px;
+  }
+  #layers{ position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform; }
+  #layers canvas{ position:absolute;left:0;top:0;display:block;image-rendering:pixelated; }
+  .empty{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:13px;text-align:center;line-height:1.7;padding:40px;
+  }
+
+  /* Pinsel-Vorschau: Ring in Canvas-Mitte, nur beim Einstellen sichtbar */
+  .brushring{
+    position:absolute;left:0;top:0;border:1.5px solid var(--accent);border-radius:50%;
+    transform:translate(-50%,-50%);pointer-events:none;opacity:0;transition:opacity .15s;
+    box-shadow:0 0 0 1px rgba(0,0,0,.55) inset, 0 0 0 1px rgba(0,0,0,.55);
+  }
+  .brushring.show{ opacity:1; }
+
+  /* Menü-Knopf: immer erreichbar, dezent über dem Bild */
+  .menubtn{
+    position:absolute;z-index:20;top:calc(env(safe-area-inset-top) + 12px);right:12px;
+    width:46px;height:46px;border-radius:13px;border:1px solid var(--line);
+    background:rgba(22,22,26,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    color:var(--ink);font-size:22px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:transform .08s,background .12s;
+  }
+  .menubtn:active{ transform:scale(.94); }
+  .menubtn.open{ background:var(--accent);color:var(--accent-ink);border-color:var(--accent); }
+  .menubtn svg{ display:block;pointer-events:none; }
+
+  /* Toggelbares Bedien-Panel als Bottom-Sheet */
+  .panel{
+    position:absolute;z-index:15;left:0;right:0;bottom:0;
+    background:rgba(18,20,29,.94);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);
+    border-top:1px solid var(--line);
+    padding:22px 18px calc(18px + env(safe-area-inset-bottom));
+    display:flex;flex-direction:column;gap:16px;
+    transition:transform .24s cubic-bezier(.32,.72,0,1);
+  }
+  .panel::before{ /* zarter Sheet-Griff */
+    content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    width:34px;height:4px;border-radius:2px;background:var(--line);
+  }
+  .panel[hidden]{ display:flex;transform:translateY(115%); }   /* animiert ein/aus statt hart */
+
+  /* Segmentierter Schalter: leicht, gepolstert, mit weicher aktiver Pille */
+  .seg{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;}
+  .seg button{
+    flex:1;appearance:none;border:0;background:transparent;color:var(--muted);
+    font-family:inherit;font-size:13px;font-weight:500;letter-spacing:.01em;padding:9px 6px;
+    cursor:pointer;border-radius:9px;transition:background .16s,color .16s;
+  }
+  .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600;}
+
+  /* Zarte Sektions-Labels */
+  .lbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600;
+    margin:3px 2px -6px;display:flex;justify-content:space-between;align-items:baseline;}
+  .lbl .val{color:var(--ink);font-weight:500;letter-spacing:.01em;text-transform:none;font-size:12px;}
+  input[type=range]{width:100%;accent-color:var(--accent);height:26px;}
+
+  .row{display:flex;gap:8px;}
+  .row button{
+    flex:1;appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    font-family:inherit;font-size:13px;font-weight:500;letter-spacing:.01em;padding:12px 4px;border-radius:11px;
+    cursor:pointer;transition:transform .08s,background .16s,border-color .16s;
+  }
+  .row button:hover{ border-color:#34384a; }
+  .row button:active{transform:scale(.97);}
+  .row .primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
+  .row button:disabled{opacity:.35;pointer-events:none;}
+  input[type=file]{display:none;}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div id="layers">
+    <canvas id="base"></canvas>     <!-- Originalbild -->
+    <canvas id="over"></canvas>     <!-- Mosaik durch Maske -->
+    <canvas id="preview"></canvas>  <!-- Live-Vorschau unter dem Cursor -->
+  </div>
+  <div class="empty" id="empty">JPG laden, um zu starten<br>· ein Finger: malen · zwei Finger: Zoom</div>
+  <div class="brushring" id="brushring"></div>
+</div>
+
+<button class="menubtn" id="menuBtn" aria-label="Menü">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+</button>
+
+<div class="panel" id="panel">
+  <div class="row">
+    <button id="load" class="primary">Laden</button>
+    <button id="save" disabled>Sichern</button>
+  </div>
+
+  <div class="lbl">Pixel-Grösse</div>
+  <div class="seg" id="blockSeg">
+    <button data-block="4">4</button>
+    <button data-block="16" class="on">16</button>
+    <button data-block="32">32</button>
+    <button data-block="64">64</button>
+    <button data-block="128">128</button>
+  </div>
+
+  <div class="lbl">Werkzeug</div>
+  <div class="seg" id="modeSeg">
+    <button data-mode="paint" class="on">Malen</button>
+    <button data-mode="erase">Radieren</button>
+  </div>
+
+  <div class="lbl">Pinselgrösse <span class="val" id="brushVal">12 %</span></div>
+  <input type="range" id="brush" min="1" max="60" value="12">
+
+  <div class="lbl">Pinselkante <span class="val" id="hardVal">weich → hart · 65 %</span></div>
+  <input type="range" id="hard" min="0" max="100" value="65">
+
+  <div class="row">
+    <button id="undo" disabled>Undo</button>
+    <button id="fit" disabled>Anpassen</button>
+    <button id="reset" disabled>Reset</button>
+  </div>
+</div>
+
+<input type="file" id="file" accept="image/jpeg,image/*">
+
+<script>
+"use strict";
+
+// ---------- DOM & Layer ----------------------------------------------------
+const stage  = document.getElementById('stage');
+const layers = document.getElementById('layers');
+const empty  = document.getElementById('empty');
+const base   = document.getElementById('base');   // sichtbar: Original
+const over   = document.getElementById('over');    // sichtbar: Mosaik durch Maske
+const pv     = document.getElementById('preview'); // sichtbar: Live-Vorschau
+const bctx   = base.getContext('2d');
+const octx   = over.getContext('2d');
+const pvx    = pv.getContext('2d');
+
+// Off-DOM-Puffer. 'base' (sichtbar) hält gleichzeitig das Originalbild und
+// dient als Quelle fürs Mosaik und fürs Speichern – spart ein Voll-Canvas.
+const mosaic = document.createElement('canvas'); const mctx=mosaic.getContext('2d');  // heruntergerechnetes Bild
+const mask   = document.createElement('canvas'); const kctx=mask.getContext('2d');    // reiner Alpha-Layer
+
+let imgW=0,imgH=0,hasImage=false,currentName='bild';
+
+// ---------- Transform (nur CSS, GPU macht das Zoomen) ----------------------
+let scale=1, tx=0, ty=0, minScale=0.05, maxScale=40;
+let ringVisible=false;
+function applyTransform(){
+  layers.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+  if(ringVisible) styleRing();   // Ring-Durchmesser hängt vom Zoom ab
+}
+
+// ---------- Mosaik vorberechnen --------------------------------------------
+let block=16;
+function buildMosaic(){
+  mosaic.width=imgW; mosaic.height=imgH;
+  const bw=Math.max(1,Math.round(imgW/block)), bh=Math.max(1,Math.round(imgH/block));
+  const tmp=document.createElement('canvas'); tmp.width=bw; tmp.height=bh;
+  const t=tmp.getContext('2d'); t.imageSmoothingEnabled=true; t.imageSmoothingQuality='high';
+  t.drawImage(base,0,0,bw,bh);                         // Durchschnittsfarbe je Block
+  mctx.imageSmoothingEnabled=false;
+  mctx.clearRect(0,0,imgW,imgH);
+  mctx.drawImage(tmp,0,0,bw,bh,0,0,imgW,imgH);
+}
+
+// ---------- over-Layer aus Maske aufbauen (selten: undo/reset/block) -------
+function rebuildOver(){
+  octx.globalCompositeOperation='source-over';
+  octx.clearRect(0,0,imgW,imgH);
+  octx.drawImage(mosaic,0,0);
+  octx.globalCompositeOperation='destination-in';
+  octx.drawImage(mask,0,0);
+  octx.globalCompositeOperation='source-over';
+}
+
+// ---------- Undo (nur Maske, speichersparsam als Alpha-Array) --------------
+// Statt eines vollen GPU-Canvas pro Schritt sichern wir nur den Alpha-Kanal
+// der Maske als Uint8Array im normalen RAM. Das vermeidet den iOS-Absturz
+// durch zu viele/zu grosse Canvas-Backings.
+const undoStack=[]; const UNDO_MAX=12;   // 12 MP × 12 ≈ 144 MB RAM (kein GPU)
+function pushUndo(){
+  try{
+    const d=kctx.getImageData(0,0,imgW,imgH).data;
+    const a=new Uint8Array(imgW*imgH);
+    for(let i=0,j=3;i<a.length;i++,j+=4) a[i]=d[j];
+    undoStack.push(a);
+    if(undoStack.length>UNDO_MAX) undoStack.shift();
+  }catch(e){}
+  refreshUndoBtn();
+}
+function undo(){
+  if(!undoStack.length) return;
+  const a=undoStack.pop();
+  const img=kctx.createImageData(imgW,imgH), d=img.data;
+  for(let i=0,j=3;i<a.length;i++,j+=4) d[j]=a[i];   // r=g=b=0, nur Alpha
+  kctx.putImageData(img,0,0);
+  rebuildOver(); refreshUndoBtn();
+}
+function refreshUndoBtn(){
+  const b=document.getElementById('undo');
+  if(b) b.disabled=!hasImage||undoStack.length===0;
+}
+
+// ---------- Pinsel -----------------------------------------------------------
+// Grösse ist BILD-bezogen (Prozent der kürzeren Bildkante): beim Zoomen bleibt
+// die abgedeckte Bildfläche gleich. Der radiale Verlauf (Härte) ist einstellbar.
+let mode='paint', brushPct=12, hardness=0.65;
+function brushR(){                                   // Radius in BILD-Pixeln
+  return Math.max(1,(brushPct/100)*Math.min(imgW||1000,imgH||1000)/2);
+}
+
+const SPRITE=256;
+const sprite=document.createElement('canvas'); sprite.width=sprite.height=SPRITE;
+function buildSprite(){
+  const c=sprite.getContext('2d'), R=SPRITE/2;
+  c.clearRect(0,0,SPRITE,SPRITE);
+  const g=c.createRadialGradient(R,R,0,R,R,R);
+  g.addColorStop(0,'rgba(0,0,0,1)');
+  g.addColorStop(Math.min(.999,hardness),'rgba(0,0,0,1)');  // deckender Kern
+  g.addColorStop(1,'rgba(0,0,0,0)');                        // weicher Rand
+  c.fillStyle=g; c.fillRect(0,0,SPRITE,SPRITE);
+}
+buildSprite();
+
+// rAF-gepufferte Mal-Pipeline: Punkte sammeln, einmal pro Frame verarbeiten.
+let drawing=false, queue=[], strokeLast=null, paintPending=false;
+
+function flushPaint(){
+  paintPending=false;
+  if(!queue.length) return;
+  const pts = strokeLast ? [strokeLast,...queue] : queue.slice();
+  queue.length=0; strokeLast=pts[pts.length-1];
+  const r=brushR(), step=Math.max(1,r*0.35);
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+
+  // 1) Sprite entlang der Linie in den Alpha-Layer stempeln
+  kctx.globalCompositeOperation=(mode==='erase')?'destination-out':'source-over';
+  const put=(x,y)=>{
+    kctx.drawImage(sprite, x-r, y-r, r*2, r*2);
+    if(x-r<minx)minx=x-r; if(y-r<miny)miny=y-r;
+    if(x+r>maxx)maxx=x+r; if(y+r>maxy)maxy=y+r;
+  };
+  for(let i=1;i<pts.length;i++){
+    const a=pts[i-1], b=pts[i], d=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(d/step));
+    for(let k=1;k<=n;k++){ const t=k/n; put(a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t); }
+  }
+  if(pts.length===1) put(pts[0].x,pts[0].y);
+  kctx.globalCompositeOperation='source-over';
+
+  // 2) Anzeige nur im betroffenen Rechteck neu rechnen: Mosaik ∧ Maske
+  const bx=Math.max(0,Math.floor(minx)), by=Math.max(0,Math.floor(miny));
+  const bw=Math.min(imgW,Math.ceil(maxx))-bx, bh=Math.min(imgH,Math.ceil(maxy))-by;
+  if(bw<=0||bh<=0) return;
+  octx.save();
+  octx.beginPath(); octx.rect(bx,by,bw,bh); octx.clip();   // Composite bleibt im Rechteck
+  octx.clearRect(bx,by,bw,bh);
+  octx.drawImage(mosaic, bx,by,bw,bh, bx,by,bw,bh);
+  octx.globalCompositeOperation='destination-in';
+  octx.drawImage(mask,   bx,by,bw,bh, bx,by,bw,bh);
+  octx.globalCompositeOperation='source-over';
+  octx.restore();
+}
+function schedulePaint(){ if(!paintPending){ paintPending=true; requestAnimationFrame(flushPaint); } }
+
+// ---------- Screen -> Bildkoordinaten (über die Container-Transform) -------
+function screenToImage(clientX,clientY){
+  const r=stage.getBoundingClientRect();
+  return { x:(clientX-r.left-tx)/scale, y:(clientY-r.top-ty)/scale };
+}
+function fitImage(){
+  const r=stage.getBoundingClientRect();
+  const s=Math.min(r.width/imgW, r.height/imgH);
+  scale=s; minScale=s*0.3; maxScale=s*30;
+  tx=(r.width-imgW*s)/2; ty=(r.height-imgH*s)/2;
+  applyTransform();
+}
+
+// ---------- Pointer: 1 Finger malt, 2 Finger zoomen ------------------------
+const active=new Map();
+let pinch=null;
+
+stage.addEventListener('pointerdown',e=>{
+  if(!hasImage) return;
+  stage.setPointerCapture(e.pointerId);
+  active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(active.size===2){
+    // zweiter Finger: vom Malen zum Zoomen wechseln, angefangenes Undo verwerfen
+    if(drawing && undoStack.length){ undoStack.pop(); refreshUndoBtn(); }
+    drawing=false; queue.length=0; strokeLast=null; endHover(); startPinch();
+  }else if(active.size===1){
+    pushUndo();
+    drawing=true; strokeLast=null; queue.length=0;
+    queue.push(screenToImage(e.clientX,e.clientY)); schedulePaint();
+    clearPreview(); ringAt(e.clientX,e.clientY); showRing();   // Vorschau weg, Ring bleibt
+  }
+},{passive:false});
+
+stage.addEventListener('pointermove',e=>{
+  if(hasImage && active.size<2){
+    if(drawing){ ringAt(e.clientX,e.clientY); showRing(); }          // beim Malen nur Ring
+    else if(e.pointerType==='mouse'){ hover(e.clientX,e.clientY); }  // Maus: echte Vorschau
+  }
+  if(!active.has(e.pointerId)) return;
+  active.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  e.preventDefault();
+  if(active.size>=2){ updatePinch(); return; }
+  if(active.size===1 && drawing){
+    queue.push(screenToImage(e.clientX,e.clientY)); schedulePaint();
+  }
+},{passive:false});
+
+function endPointer(e){
+  if(active.has(e.pointerId)) active.delete(e.pointerId);
+  if(active.size<2) pinch=null;
+  if(active.size===0){
+    drawing=false; flushPaint();
+    if(e.pointerType==='mouse') hover(e.clientX,e.clientY);   // Vorschau wieder zeigen
+    else endHover();
+  }else if(active.size===1){ drawing=false; strokeLast=null; }
+}
+stage.addEventListener('pointerup',endPointer);
+stage.addEventListener('pointercancel',endPointer);
+stage.addEventListener('pointerleave',endHover);   // Maus verlässt Bild → alles weg
+
+// ---------- Desktop: Trackpad/Mausrad -------------------------------------
+// Trackpad-Pinch & Ctrl+Wheel = Zoom um den Cursor; Zwei-Finger-Scroll = verschieben.
+stage.addEventListener('wheel',e=>{
+  if(!hasImage) return;
+  e.preventDefault();
+  const r=stage.getBoundingClientRect();
+  const cx=e.clientX-r.left, cy=e.clientY-r.top;
+  if(e.ctrlKey){                                   // Pinch-Geste / gezielter Zoom
+    let ns=scale*Math.exp(-e.deltaY*0.01);
+    ns=Math.max(minScale,Math.min(maxScale,ns));
+    const k=ns/scale;
+    tx=cx-(cx-tx)*k; ty=cy-(cy-ty)*k; scale=ns;
+  }else{                                            // Zwei-Finger-Scroll
+    tx-=e.deltaX; ty-=e.deltaY;
+  }
+  scheduleTransform();
+},{passive:false});
+
+// ---------- Pinch-Zoom (verschiebt + skaliert den Container) ---------------
+function twoPoints(){ const a=[...active.values()]; return [a[0],a[1]]; }
+function startPinch(){
+  const [a,b]=twoPoints(); const r=stage.getBoundingClientRect();
+  pinch={ dist:Math.hypot(b.x-a.x,b.y-a.y),
+          cx:(a.x+b.x)/2-r.left, cy:(a.y+b.y)/2-r.top,
+          scale, tx, ty };
+}
+function updatePinch(){
+  if(!pinch){ startPinch(); return; }
+  const [a,b]=twoPoints(); const r=stage.getBoundingClientRect();
+  const dist=Math.hypot(b.x-a.x,b.y-a.y);
+  const cx=(a.x+b.x)/2-r.left, cy=(a.y+b.y)/2-r.top;
+  let ns=pinch.scale*(dist/pinch.dist);
+  ns=Math.max(minScale,Math.min(maxScale,ns));
+  const k=ns/pinch.scale;
+  // Punkt unter dem Pinch-Mittelpunkt fixieren + Finger-Verschiebung mitnehmen
+  tx = cx - (pinch.cx - pinch.tx)*k + (cx - pinch.cx);
+  ty = cy - (pinch.cy - pinch.ty)*k + (cy - pinch.cy);
+  scale=ns; scheduleTransform();
+}
+
+// rAF-Drosselung nur für die Transform (1x pro Frame)
+let tfPending=false;
+function scheduleTransform(){
+  if(tfPending) return; tfPending=true;
+  requestAnimationFrame(()=>{ tfPending=false; applyTransform(); });
+}
+
+// ---------- Laden (mit Downscale + EXIF-Orientierung) ----------------------
+const MAX_EDGE=4000;   // lange Kante; höher = mehr GPU-Speicher (Absturzrisiko iOS)
+const fileEl=document.getElementById('file');
+document.getElementById('load').onclick=()=>fileEl.click();
+fileEl.onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  currentName=(f.name||'bild').replace(/\.[^.]+$/,'');
+  let bmp;
+  try{ bmp=await createImageBitmap(f,{imageOrientation:'from-image'}); }
+  catch(_){ bmp=await createImageBitmap(f); }
+  let w=bmp.width,h=bmp.height; const long=Math.max(w,h);
+  if(long>MAX_EDGE){ const k=MAX_EDGE/long; w=Math.round(w*k); h=Math.round(h*k); }
+  imgW=w; imgH=h;
+
+  // Layer-Canvas auf Bildauflösung + CSS-Größe = Bildpixel (Transform skaliert)
+  for(const cv of [base,over,pv]){ cv.width=imgW; cv.height=imgH; cv.style.width=imgW+'px'; cv.style.height=imgH+'px'; }
+  layers.style.width=imgW+'px'; layers.style.height=imgH+'px';
+
+  bctx.imageSmoothingEnabled=true; bctx.imageSmoothingQuality='high';
+  bctx.clearRect(0,0,imgW,imgH); bctx.drawImage(bmp,0,0,imgW,imgH); bmp.close();
+
+  mask.width=imgW; mask.height=imgH; kctx.clearRect(0,0,imgW,imgH);
+  buildMosaic(); rebuildOver();
+
+  hasImage=true; empty.style.display='none';
+  undoStack.length=0; refreshUndoBtn();
+  ['reset','fit','save'].forEach(id=>document.getElementById(id).disabled=false);
+  fitImage(); setMenu(false); fileEl.value='';   // Menü zu → nur Bild
+};
+
+// ---------- Toolbar --------------------------------------------------------
+document.getElementById('modeSeg').onclick=e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  mode=b.dataset.mode; drawing=false; queue.length=0; strokeLast=null;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+};
+document.getElementById('blockSeg').onclick=e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  block=+b.dataset.block;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+  if(hasImage){ buildMosaic(); rebuildOver(); }
+};
+const brushEl=document.getElementById('brush'), brushVal=document.getElementById('brushVal');
+const hardEl =document.getElementById('hard'),  hardVal =document.getElementById('hardVal');
+const ring=document.getElementById('brushring');
+let ringTimer=null;
+
+// --- Ring-Umriss (Bildschirm-Overlay; Durchmesser = Bild-Radius × Zoom) -----
+function styleRing(){ const d=brushR()*2*scale; ring.style.width=ring.style.height=d+'px'; }
+function ringAt(clientX,clientY){
+  const r=stage.getBoundingClientRect(); styleRing();
+  ring.style.left=(clientX-r.left)+'px'; ring.style.top=(clientY-r.top)+'px';
+}
+function ringCenter(){
+  const r=stage.getBoundingClientRect(); styleRing();
+  ring.style.left=(r.width/2)+'px'; ring.style.top=(r.height/2)+'px';
+}
+function showRing(){ ring.classList.add('show'); ringVisible=true; clearTimeout(ringTimer); }
+function hideRing(){ ring.classList.remove('show'); ringVisible=false; }
+
+// --- Echte Verpixelungs-Vorschau auf der Vorschau-Ebene (Bildkoordinaten) ---
+let pvBox=null;
+function clearPreview(){ if(pvBox){ pvx.clearRect(pvBox.x,pvBox.y,pvBox.w,pvBox.h); pvBox=null; } }
+function drawPreview(ix,iy){
+  clearPreview();
+  if(!hasImage) return;
+  const r=brushR();
+  const x0=Math.max(0,Math.floor(ix-r)), y0=Math.max(0,Math.floor(iy-r));
+  const w=Math.min(imgW,Math.ceil(ix+r))-x0, h=Math.min(imgH,Math.ceil(iy+r))-y0;
+  if(w<=0||h<=0) return;
+  const src=(mode==='erase')?base:mosaic;   // Radieren zeigt das Original, Malen das Mosaik
+  pvx.save();
+  pvx.beginPath(); pvx.rect(x0,y0,w,h); pvx.clip();
+  pvx.globalCompositeOperation='source-over';
+  pvx.drawImage(sprite, ix-r, iy-r, r*2, r*2);          // weiche Pinselmaske
+  pvx.globalCompositeOperation='source-in';
+  pvx.drawImage(src, x0,y0,w,h, x0,y0,w,h);              // mit echtem Bildinhalt füllen
+  pvx.globalCompositeOperation='source-over';
+  pvx.restore();
+  pvBox={x:x0,y:y0,w:w,h:h};
+}
+// Vorschau am Cursor (Bild) + Ring am Bildschirm
+function hover(clientX,clientY){ const p=screenToImage(clientX,clientY); drawPreview(p.x,p.y); ringAt(clientX,clientY); showRing(); }
+function endHover(){ clearPreview(); hideRing(); }
+
+function previewRing(){ ringCenter(); showRing(); clearTimeout(ringTimer); ringTimer=setTimeout(hideRing,1000); }
+
+brushEl.oninput=()=>{ brushPct=+brushEl.value; brushVal.textContent=brushPct+' %'; previewRing(); };
+hardEl.oninput =()=>{ hardness=+hardEl.value/100; hardVal.textContent='weich → hart · '+hardEl.value+' %'; buildSprite(); previewRing(); };
+
+document.getElementById('undo').onclick=undo;
+document.getElementById('reset').onclick=()=>{ pushUndo(); kctx.clearRect(0,0,imgW,imgH); rebuildOver(); };
+document.getElementById('fit').onclick=fitImage;
+
+// ---------- Menü ein-/ausblenden -------------------------------------------
+const menuBtn=document.getElementById('menuBtn'), panel=document.getElementById('panel');
+function setMenu(open){
+  panel.hidden=!open;
+  menuBtn.classList.toggle('open',open);   // Zahnrad bleibt, nur Highlight wechselt
+  menuBtn.setAttribute('aria-label',open?'Menü schliessen':'Menü öffnen');
+}
+menuBtn.onclick=()=>setMenu(panel.hidden);
+setMenu(true);   // Start mit offenem Menü, damit „Laden" sichtbar ist
+
+// ---------- Sichern --------------------------------------------------------
+document.getElementById('save').onclick=async ()=>{
+  const out=document.createElement('canvas'); out.width=imgW; out.height=imgH;
+  const o=out.getContext('2d');
+  o.drawImage(base,0,0); o.drawImage(over,0,0);
+  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',0.92));
+  const fname=currentName+'-pixelated.jpg';
+  const fileObj=new File([blob],fname,{type:'image/jpeg'});
+  // Teilen nur auf Touch-Geräten (iPhone/iPad → „In Fotos sichern"). Auf dem
+  // Desktop führt das nur zum AirDrop/Mail-Menü ohne Download → dort lieber laden.
+  const touch=matchMedia('(pointer: coarse)').matches;
+  if(touch && navigator.canShare && navigator.canShare({files:[fileObj]})){
+    try{ await navigator.share({files:[fileObj],title:fname}); return; }
+    catch(err){ if(err.name==='AbortError') return; }
+  }
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+};
+
+// ---------- Service Worker -------------------------------------------------
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
