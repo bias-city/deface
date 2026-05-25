@@ -30,11 +30,12 @@ the same way and matches). In a quick 1-NN test on the Olivetti faces (40 people
 ~85 %.
 
 The **Secure** mode hardens the mosaic by **locally shuffling the tiles** (a random grid
-offset plus swapping each tile with a nearby neighbour). This keeps the palette completely
-natural — it is a pure permutation, no foreign colours — but destroys the facial *structure*
-(where the eyes/mouth sit) that recognisers rely on. In the same test this dropped 8×8
-recognition from ~85 % to ~14 %. It works best with **coarse blocks** (the scramble is
-relative to tile count).
+offset plus swapping each tile with a nearby neighbour). Swaps are only allowed between
+tiles of **similar hue** (compared by brightness-independent chromaticity), so the local
+colour spectrum is preserved — light and dark *skin* tones swap freely (which destroys the
+eye/mouth layout recognisers rely on), but green grass behind the face is never mixed in.
+This keeps the palette natural while scrambling structure; it dropped 8×8 recognition from
+~85 % to ~14 % in the test, and works best with **coarse blocks**.
 
 Caveats: the shuffle is information-*preserving* (it only hides the arrangement, and the
 colour histogram is unchanged), so a determined adversary could try to "un-jigsaw" it using
