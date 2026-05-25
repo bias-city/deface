@@ -141,7 +141,7 @@
   </div>
 
   <div class="lbl">Secure scramble <span class="val" id="secNote">off</span></div>
-  <input type="range" id="sec" min="0" max="100" value="0">
+  <input type="range" id="sec" min="0" max="7" value="0" step="1">
 
   <div class="lbl">Tool</div>
   <div class="seg" id="modeSeg">
@@ -206,7 +206,7 @@ function applyTransform(){
 // ---------- Mosaik vorberechnen --------------------------------------------
 // Das Mosaik wird NUR in Blockauflösung gespeichert (eine Farbe je Kachel) –
 // spart fast eine ganze Voll-Canvas. Beim Anzeigen scharf hochskaliert.
-let block=16, secStrength=0;   // 0 = aus … 1 = stark durchmischt
+let block=16, secStep=0;   // 0 = aus · 1–6 = Verunstaltungsgrad (Radius) · 7 = QR-Muster
 function buildMosaic(){
   const bw=Math.max(1,Math.round(imgW/block)), bh=Math.max(1,Math.round(imgH/block));
   mosaic.width=bw; mosaic.height=bh;
@@ -214,8 +214,16 @@ function buildMosaic(){
   cell.width=bw; cell.height=bh; ptmp.width=bw; ptmp.height=bh;
   mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
   mctx.clearRect(0,0,bw,bh);
-  if(secStrength<=0){
+  if(secStep<=0){
     mctx.drawImage(base,0,0,bw,bh);                    // Durchschnittsfarbe je Block
+    return;
+  }
+  if(secStep>=7){
+    // QR-Modus: zufälliges Schwarz/Weiss-Raster ersetzt alles → keine Bild-
+    // information mehr (maximaler Schutz, lenkt Erkenner ab).
+    const im=mctx.createImageData(bw,bh), p=im.data;
+    for(let i=0,k=0;i<bw*bh;i++,k+=4){ const v=Math.random()<0.5?0:255; p[k]=p[k+1]=p[k+2]=v; p[k+3]=255; }
+    mctx.putImageData(im,0,0);
     return;
   }
   // Secure-Modus: behält die natürliche Kachel-Palette, zerstört aber die
@@ -229,9 +237,7 @@ function buildMosaic(){
   //    Hauttöne dürfen tauschen (zerstört die Augen/Mund-Lage), Grün vom Gras
   //    bleibt draussen → das lokale Farbspektrum wird respektiert.
   const im=mctx.getImageData(0,0,bw,bh), p=im.data, CT2=0.006;
-  // Stärke = REICHWEITE der Verschiebung → Grad der Verunstaltung (1 = kaum, 6 = stark).
-  // Darüber ändert sich kaum noch etwas, daher mappt der ganze Slider auf 1…6.
-  const R=1+Math.round(secStrength*5), PASSES=2;
+  const R=secStep, PASSES=2;   // Stufe 1–6 = Reichweite der Verschiebung (Grad der Verunstaltung)
   for(let pass=0; pass<PASSES; pass++){
     for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
       const a=(y*bw+x)*4, sa=p[a]+p[a+1]+p[a+2]+1;
@@ -496,8 +502,8 @@ document.getElementById('blockSeg').onclick=e=>{
 const secEl=document.getElementById('sec'), secNote=document.getElementById('secNote');
 let secPending=false;
 secEl.oninput=()=>{
-  secStrength=+secEl.value/100;
-  secNote.textContent = secStrength>0 ? Math.round(secStrength*100)+' %' : 'off';
+  secStep=+secEl.value;
+  secNote.textContent = secStep===0 ? 'off' : secStep===7 ? 'QR pattern' : 'scramble '+secStep+'/6';
   if(hasImage && !secPending){          // live, aber max. 1× pro Frame
     secPending=true;
     requestAnimationFrame(()=>{ secPending=false; buildMosaic(); rebuildOver(); });
