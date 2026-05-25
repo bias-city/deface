@@ -29,13 +29,17 @@ the same way and matches). In a quick 1-NN test on the Olivetti faces (40 people
 2.5 %), even a **2×2** mosaic over the face reached ~48 % identification, and 8×8 reached
 ~85 %.
 
-The **Secure** mode hardens the mosaic against this by adding, per tile, a **random grid
-offset + brightness jitter + noise + colour quantisation** — randomness the attacker
-cannot reproduce. In the same test this dropped 8×8 recognition from ~85 % to ~22 %, and
-very coarse + Secure to ~7–13 %.
+The **Secure** mode hardens the mosaic by **locally shuffling the tiles** (a random grid
+offset plus swapping each tile with a nearby neighbour). This keeps the palette completely
+natural — it is a pure permutation, no foreign colours — but destroys the facial *structure*
+(where the eyes/mouth sit) that recognisers rely on. In the same test this dropped 8×8
+recognition from ~85 % to ~14 %. It works best with **coarse blocks** (the scramble is
+relative to tile count).
 
-For a hard guarantee, **fully removing** the region (a solid opaque block) is the only
-method that drops to chance level. Coarser blocks + Secure get close, but never to zero.
+Caveats: the shuffle is information-*preserving* (it only hides the arrangement, and the
+colour histogram is unchanged), so a determined adversary could try to "un-jigsaw" it using
+a smoothness prior. For a hard guarantee, **fully removing** the region (a solid opaque
+block) is the only method that destroys the information and drops to chance level.
 
 ## How it works
 
