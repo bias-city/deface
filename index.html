@@ -511,7 +511,7 @@ document.getElementById('save').onclick=async ()=>{
   const o=out.getContext('2d');
   o.drawImage(base,0,0); o.drawImage(over,0,0);
   const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',0.92));
-  const fname=currentName+'-pixelated.jpg';
+  const fname=currentName+'-deface.jpg';
   const fileObj=new File([blob],fname,{type:'image/jpeg'});
   // Teilen nur auf Touch-Geräten (iPhone/iPad → „In Fotos sichern"). Auf dem
   // Desktop führt das nur zum AirDrop/Mail-Menü ohne Download → dort lieber laden.

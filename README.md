@@ -57,7 +57,7 @@ python3 -m http.server 8000
 ### Mit GitHub Pages veröffentlichen
 
 In den Repo-**Settings → Pages** als Quelle den `main`-Branch (Ordner `/root`) wählen.
-Die App ist dann unter `https://<user>.github.io/pixelate-pwa/` erreichbar.
+Die App ist dann unter `https://<user>.github.io/deface/` erreichbar.
 
 ## Lizenz
 
