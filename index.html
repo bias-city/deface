@@ -191,6 +191,9 @@ const mosaic = document.createElement('canvas'); const mctx=mosaic.getContext('2
 const mask   = document.createElement('canvas'); const kctx=mask.getContext('2d');    // reiner Alpha-Layer (¼)
 const cell   = document.createElement('canvas'); const cctx=cell.getContext('2d');    // je Kachel: 1 Farbe × 1 Alpha
 const ptmp   = document.createElement('canvas'); const ptctx=ptmp.getContext('2d');   // Vorschau-Alpha auf Kachelraster
+const pcol   = document.createElement('canvas'); const pcc=pcol.getContext('2d');     // Farbquelle für Stufe 7 (Lokalfarbe)
+const samp   = document.createElement('canvas'); samp.width=samp.height=1;            // 1×1: Mittelwert unter dem Pinsel
+const sctx   = samp.getContext('2d',{willReadFrequently:true});
 
 let imgW=0,imgH=0,hasImage=false,currentName='bild';
 let mskx=1,msky=1;   // Maske↔Bild-Skalierung (Maske liegt in reduzierter Auflösung vor)
@@ -211,55 +214,40 @@ function buildMosaic(){
   const bw=Math.max(1,Math.round(imgW/block)), bh=Math.max(1,Math.round(imgH/block));
   mosaic.width=bw; mosaic.height=bh;
   // Alpha auf demselben Raster wie die Farbe: 1 Alpha je GANZER Kachel.
-  cell.width=bw; cell.height=bh; ptmp.width=bw; ptmp.height=bh;
+  cell.width=bw; cell.height=bh; ptmp.width=bw; ptmp.height=bh; pcol.width=bw; pcol.height=bh;
   mctx.imageSmoothingEnabled=true; mctx.imageSmoothingQuality='high';
   mctx.clearRect(0,0,bw,bh);
-  if(secStep<=0){
-    mctx.drawImage(base,0,0,bw,bh);                    // Durchschnittsfarbe je Block
-    return;
-  }
-  if(secStep>=7){
-    // Volltonblock: eine deckende Farbe = maskengewichteter Mittelwert der
-    // bemalten Fläche (zentrale Pixel-Mischung). Keine Struktur mehr → sicher.
-    mctx.drawImage(base,0,0,bw,bh);                         // erst normales Block-Mosaik
-    const md=mctx.getImageData(0,0,bw,bh).data;
-    ptctx.clearRect(0,0,bw,bh); ptctx.imageSmoothingEnabled=true;
-    ptctx.drawImage(mask,0,0,mask.width,mask.height,0,0,bw,bh);   // Maske auf Blockraster
-    const ad=ptctx.getImageData(0,0,bw,bh).data;
-    let sr=0,sg=0,sb=0,sa=0;
-    for(let i=0,k=0;i<bw*bh;i++,k+=4){ const a=ad[k+3]; sr+=md[k]*a; sg+=md[k+1]*a; sb+=md[k+2]*a; sa+=a; }
-    if(sa===0){ for(let i=0,k=0;i<bw*bh;i++,k+=4){ sr+=md[k]; sg+=md[k+1]; sb+=md[k+2]; } sa=bw*bh; }
-    mctx.fillStyle=`rgb(${sr/sa|0},${sg/sa|0},${sb/sa|0})`;
-    mctx.fillRect(0,0,bw,bh);
-    return;
-  }
-  // Secure-Modus: behält die natürliche Kachel-Palette, zerstört aber die
-  // Gesichts-STRUKTUR (wo Augen/Mund liegen) – das nutzen Erkenner zum Zuordnen.
-  // 1) zufälliger Raster-Versatz – der exakte Block-Raster ist nicht reproduzierbar
-  const bs=imgW/bw;
-  const ox=Math.floor(Math.random()*bs), oy=Math.floor(Math.random()*bs);
-  mctx.drawImage(base, ox,oy, imgW-ox, imgH-oy, 0,0, bw,bh);
-  // 2) lokaler Kachel-Shuffle, aber nur zwischen Kacheln ÄHNLICHEN FARBTONS.
-  //    Vergleich über Chromatizität (helligkeitsunabhängig): helle und dunkle
-  //    Hauttöne dürfen tauschen (zerstört die Augen/Mund-Lage), Grün vom Gras
-  //    bleibt draussen → das lokale Farbspektrum wird respektiert.
-  const im=mctx.getImageData(0,0,bw,bh), p=im.data, CT2=0.006;
-  const R=secStep, PASSES=2;   // Stufe 1–6 = Reichweite der Verschiebung (Grad der Verunstaltung)
-  for(let pass=0; pass<PASSES; pass++){
-    for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
-      const a=(y*bw+x)*4, sa=p[a]+p[a+1]+p[a+2]+1;
-      for(let tr=0; tr<5; tr++){                       // bis zu 5 Kandidaten im Radius probieren
-        const x2=Math.min(bw-1,Math.max(0, x + (Math.random()*(2*R+1)|0) - R));
-        const y2=Math.min(bh-1,Math.max(0, y + (Math.random()*(2*R+1)|0) - R));
-        const b=(y2*bw+x2)*4, sb=p[b]+p[b+1]+p[b+2]+1;
-        const dr=p[a]/sa-p[b]/sb, dg=p[a+1]/sa-p[b+1]/sb, db=p[a+2]/sa-p[b+2]/sb;
-        if(dr*dr+dg*dg+db*db>CT2) continue;            // anderer Farbton → nächster Kandidat
-        for(let c=0;c<4;c++){ const t=p[a+c]; p[a+c]=p[b+c]; p[b+c]=t; }
-        break;                                         // mit erstem gleichfarbigen tauschen
+  if(secStep>=1 && secStep<=6){
+    // Secure-Shuffle: natürliche Kachel-Palette, aber Struktur zerstört.
+    // 1) zufälliger Raster-Versatz (Block-Raster nicht reproduzierbar)
+    const bs=imgW/bw;
+    const ox=Math.floor(Math.random()*bs), oy=Math.floor(Math.random()*bs);
+    mctx.drawImage(base, ox,oy, imgW-ox, imgH-oy, 0,0, bw,bh);
+    // 2) lokaler Tausch nur zwischen Kacheln ähnlichen FARBTONS (Chromatizität,
+    //    helligkeitsunabhängig) → Grün bleibt draussen, Hauttöne mischen durch.
+    const im=mctx.getImageData(0,0,bw,bh), p=im.data, CT2=0.006;
+    const R=secStep, PASSES=2;   // Stufe = Reichweite der Verschiebung
+    for(let pass=0; pass<PASSES; pass++){
+      for(let y=0;y<bh;y++) for(let x=0;x<bw;x++){
+        const a=(y*bw+x)*4, sa=p[a]+p[a+1]+p[a+2]+1;
+        for(let tr=0; tr<5; tr++){
+          const x2=Math.min(bw-1,Math.max(0, x + (Math.random()*(2*R+1)|0) - R));
+          const y2=Math.min(bh-1,Math.max(0, y + (Math.random()*(2*R+1)|0) - R));
+          const b=(y2*bw+x2)*4, sb=p[b]+p[b+1]+p[b+2]+1;
+          const dr=p[a]/sa-p[b]/sb, dg=p[a+1]/sa-p[b+1]/sb, db=p[a+2]/sa-p[b+2]/sb;
+          if(dr*dr+dg*dg+db*db>CT2) continue;
+          for(let c=0;c<4;c++){ const t=p[a+c]; p[a+c]=p[b+c]; p[b+c]=t; }
+          break;
+        }
       }
     }
+    mctx.putImageData(im,0,0);
+  }else{
+    mctx.drawImage(base,0,0,bw,bh);                    // Stufe 0 & 7: Durchschnittsfarbe je Block
   }
-  mctx.putImageData(im,0,0);
+  // Farbquelle für Stufe 7 (Volltonpinsel) zunächst = Mosaik; wird beim Malen
+  // lokal mit der Pinsel-Innenfarbe überschrieben.
+  pcc.clearRect(0,0,bw,bh); pcc.drawImage(mosaic,0,0);
 }
 // Block-Mosaik scharf (ohne Glättung) in ein Ziel-Rechteck (Bildkoordinaten) zeichnen.
 // Die Quell-Abbildung ist linear identisch zum Voll-Mosaik → keine Nähte bei Teilflächen.
@@ -276,7 +264,7 @@ function composeCell(){
   cctx.globalCompositeOperation='source-over';
   cctx.imageSmoothingEnabled=false;
   cctx.clearRect(0,0,cell.width,cell.height);
-  cctx.drawImage(mosaic,0,0);                                            // Blockfarben (1:1)
+  cctx.drawImage(secStep>=7?pcol:mosaic,0,0);                            // Farbe je Kachel (Stufe 7 = Lokalfarbe)
   cctx.globalCompositeOperation='destination-in';
   cctx.imageSmoothingEnabled=true;                                       // Maske auf Kachelraster mitteln → 1 Alpha je Kachel
   cctx.drawImage(mask, 0,0,mask.width,mask.height, 0,0,cell.width,cell.height);
@@ -338,6 +326,25 @@ function flushPaint(){
   }
   if(pts.length===1) put(pts[0].x,pts[0].y);
   kctx.globalCompositeOperation='source-over';
+
+  // 1b) Stufe 7: Farbe = Mittelwert der Pixel UNTER dem Pinsel (innerer Radius),
+  //     lokal je Pinselposition. In die Farbquelle (pcol) stempeln.
+  if(secStep>=7){
+    const ir=Math.max(2, r*hardness);                 // innerer Radius
+    const cx=pts[pts.length-1].x, cy=pts[pts.length-1].y;
+    const x0=Math.max(0,Math.floor(cx-ir)), y0=Math.max(0,Math.floor(cy-ir));
+    const x1=Math.min(imgW,Math.ceil(cx+ir)), y1=Math.min(imgH,Math.ceil(cy+ir));
+    if(x1>x0 && y1>y0){
+      sctx.imageSmoothingEnabled=true; sctx.clearRect(0,0,1,1);
+      sctx.drawImage(base, x0,y0, x1-x0,y1-y0, 0,0,1,1);   // 1×1 = Mittelwert der Innenfläche
+      const c=sctx.getImageData(0,0,1,1).data;
+      const sx=pcol.width/imgW, sy=pcol.height/imgH;
+      pcc.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+      for(let i=0;i<pts.length;i++){
+        pcc.beginPath(); pcc.arc(pts[i].x*sx, pts[i].y*sy, Math.max(0.6,r*sx), 0, 6.2832); pcc.fill();
+      }
+    }
+  }
 
   // 2) Komposit auf Kachelraster aktualisieren, betroffenen Bereich hart hochskalieren
   composeCell();
@@ -558,6 +565,15 @@ function drawPreview(ix,iy){
   if(mode==='erase'){                                   // Radieren zeigt das scharfe Original
     pvx.imageSmoothingEnabled=true;
     pvx.drawImage(base, x0,y0,w,h, x0,y0,w,h);
+  }else if(secStep>=7){                                 // Stufe 7: Lokalfarbe (Pinsel-Innenmittel)
+    const ir=Math.max(2, r*hardness);
+    const ax0=Math.max(0,Math.floor(ix-ir)), ay0=Math.max(0,Math.floor(iy-ir));
+    const ax1=Math.min(imgW,Math.ceil(ix+ir)), ay1=Math.min(imgH,Math.ceil(iy+ir));
+    sctx.imageSmoothingEnabled=true; sctx.clearRect(0,0,1,1);
+    sctx.drawImage(base, ax0,ay0, Math.max(1,ax1-ax0),Math.max(1,ay1-ay0), 0,0,1,1);
+    const c=sctx.getImageData(0,0,1,1).data;
+    pvx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+    pvx.fillRect(x0,y0,w,h);
   }else{                                                // Malen zeigt das Block-Mosaik
     drawMosaic(pvx, x0,y0,w,h);
   }
