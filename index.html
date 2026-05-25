@@ -106,11 +106,11 @@
     <canvas id="over"></canvas>     <!-- Mosaik durch Maske -->
     <canvas id="preview"></canvas>  <!-- Live-Vorschau unter dem Cursor -->
   </div>
-  <div class="empty" id="empty">JPG laden, um zu starten<br>· ein Finger: malen · zwei Finger: Zoom</div>
+  <div class="empty" id="empty">Load a photo to start<br>· one finger: paint · two fingers: zoom</div>
   <div class="brushring" id="brushring"></div>
 </div>
 
-<button class="menubtn" id="menuBtn" aria-label="Menü">
+<button class="menubtn" id="menuBtn" aria-label="Menu">
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -119,11 +119,11 @@
 
 <div class="panel" id="panel">
   <div class="row">
-    <button id="load" class="primary">Laden</button>
-    <button id="save" disabled>Sichern</button>
+    <button id="load" class="primary">Load</button>
+    <button id="save" disabled>Save</button>
   </div>
 
-  <div class="lbl">Pixel-Grösse</div>
+  <div class="lbl">Pixel size</div>
   <div class="seg" id="blockSeg">
     <button data-block="4">4</button>
     <button data-block="16" class="on">16</button>
@@ -132,21 +132,21 @@
     <button data-block="128">128</button>
   </div>
 
-  <div class="lbl">Werkzeug</div>
+  <div class="lbl">Tool</div>
   <div class="seg" id="modeSeg">
-    <button data-mode="paint" class="on">Malen</button>
-    <button data-mode="erase">Radieren</button>
+    <button data-mode="paint" class="on">Paint</button>
+    <button data-mode="erase">Erase</button>
   </div>
 
-  <div class="lbl">Pinselgrösse <span class="val" id="brushVal">12 %</span></div>
+  <div class="lbl">Brush size <span class="val" id="brushVal">12 %</span></div>
   <input type="range" id="brush" min="1" max="60" value="12">
 
-  <div class="lbl">Pinselkante <span class="val" id="hardVal">weich → hart · 65 %</span></div>
+  <div class="lbl">Brush edge <span class="val" id="hardVal">soft → hard · 65 %</span></div>
   <input type="range" id="hard" min="0" max="100" value="65">
 
   <div class="row">
     <button id="undo" disabled>Undo</button>
-    <button id="fit" disabled>Anpassen</button>
+    <button id="fit" disabled>Fit</button>
     <button id="reset" disabled>Reset</button>
   </div>
 </div>
@@ -489,7 +489,7 @@ function endHover(){ clearPreview(); hideRing(); }
 function previewRing(){ ringCenter(); showRing(); clearTimeout(ringTimer); ringTimer=setTimeout(hideRing,1000); }
 
 brushEl.oninput=()=>{ brushPct=+brushEl.value; brushVal.textContent=brushPct+' %'; previewRing(); };
-hardEl.oninput =()=>{ hardness=+hardEl.value/100; hardVal.textContent='weich → hart · '+hardEl.value+' %'; buildSprite(); previewRing(); };
+hardEl.oninput =()=>{ hardness=+hardEl.value/100; hardVal.textContent='soft → hard · '+hardEl.value+' %'; buildSprite(); previewRing(); };
 
 document.getElementById('undo').onclick=undo;
 document.getElementById('reset').onclick=()=>{ pushUndo(); kctx.clearRect(0,0,imgW,imgH); rebuildOver(); };
@@ -500,7 +500,7 @@ const menuBtn=document.getElementById('menuBtn'), panel=document.getElementById(
 function setMenu(open){
   panel.hidden=!open;
   menuBtn.classList.toggle('open',open);   // Zahnrad bleibt, nur Highlight wechselt
-  menuBtn.setAttribute('aria-label',open?'Menü schliessen':'Menü öffnen');
+  menuBtn.setAttribute('aria-label',open?'Close menu':'Open menu');
 }
 menuBtn.onclick=()=>setMenu(panel.hidden);
 setMenu(true);   // Start mit offenem Menü, damit „Laden" sichtbar ist
