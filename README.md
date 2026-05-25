@@ -1,4 +1,4 @@
-# Pixelate
+# Deface
 
 Eine schlanke Progressive Web App zum **Verpixeln (Mosaik) von Bildbereichen** – ideal,
 um Gesichter, Kennzeichen oder andere sensible Stellen auf Fotos unkenntlich zu machen.

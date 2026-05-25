@@ -1,6 +1,6 @@
 {
-  "name": "Pixelate",
-  "short_name": "Pixelate",
+  "name": "Deface",
+  "short_name": "Deface",
   "description": "JPG laden, mit zwei Fingern zoomen, mit einem Finger Bereiche verpixeln (Mosaik) und als JPG sichern.",
   "start_url": "./index.html",
   "scope": "./",
