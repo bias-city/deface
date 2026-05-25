@@ -177,6 +177,12 @@ const bctx   = base.getContext('2d');
 const octx   = over.getContext('2d');
 const pvx    = pv.getContext('2d');
 
+// Hover-Vorschau (und die dafür nötige fünfte Voll-Canvas) nur bei Maus.
+// Auf Touch (iPhone) gibt es kein Hover – die Ebene würde nur GPU-Speicher
+// fressen und beim Pinch-Zoom zum Absturz führen.
+const mouseHover = matchMedia('(pointer: fine)').matches;
+if(!mouseHover) pv.style.display='none';
+
 // Off-DOM-Puffer. 'base' (sichtbar) hält gleichzeitig das Originalbild und
 // dient als Quelle fürs Mosaik und fürs Speichern – spart ein Voll-Canvas.
 const mosaic = document.createElement('canvas'); const mctx=mosaic.getContext('2d');  // heruntergerechnetes Bild
@@ -312,7 +318,10 @@ function screenToImage(clientX,clientY){
 function fitImage(){
   const r=stage.getBoundingClientRect();
   const s=Math.min(r.width/imgW, r.height/imgH);
-  scale=s; minScale=s*0.3; maxScale=s*30;
+  scale=s; minScale=s*0.3;
+  // Zoom so begrenzen, dass die skalierte Ebene ~8000 px nicht übersteigt
+  // (sonst sprengt iOS beim Rastern den GPU-Speicher → Absturz).
+  maxScale=Math.max(s*4, Math.min(s*30, 8000/Math.max(imgW,imgH)));
   tx=(r.width-imgW*s)/2; ty=(r.height-imgH*s)/2;
   applyTransform();
 }
@@ -426,7 +435,8 @@ fileEl.onchange=async e=>{
   imgW=w; imgH=h;
 
   // Layer-Canvas auf Bildauflösung + CSS-Größe = Bildpixel (Transform skaliert)
-  for(const cv of [base,over,pv]){ cv.width=imgW; cv.height=imgH; cv.style.width=imgW+'px'; cv.style.height=imgH+'px'; }
+  const layerCanvases = mouseHover ? [base,over,pv] : [base,over];   // pv nur bei Maus
+  for(const cv of layerCanvases){ cv.width=imgW; cv.height=imgH; cv.style.width=imgW+'px'; cv.style.height=imgH+'px'; }
   layers.style.width=imgW+'px'; layers.style.height=imgH+'px';
 
   bctx.imageSmoothingEnabled=true; bctx.imageSmoothingQuality='high';
