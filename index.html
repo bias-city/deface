@@ -121,10 +121,25 @@
   /* Dezenter Credit-Link unten links (vom Menü-Sheet verdeckt, wenn offen) */
   .credit{
     position:absolute;z-index:14;left:14px;bottom:calc(env(safe-area-inset-bottom) + 12px);
-    font-size:11px;font-weight:600;letter-spacing:.16em;text-decoration:none;
+    font-size:11px;font-weight:600;letter-spacing:.16em;text-decoration:none;cursor:pointer;
     color:var(--muted);opacity:.75;padding:4px 2px;transition:color .15s,opacity .15s;
   }
   .credit:hover{ color:var(--accent);opacity:1; }
+  .credit.r{ left:auto;right:14px; }   /* Info-Link unten rechts */
+
+  /* Info-Modal */
+  .modal{ position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    padding:22px;background:rgba(6,7,12,.62);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px); }
+  .modal[hidden]{ display:none; }
+  .modal .card{ background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    width:100%;max-width:520px;max-height:82vh;overflow:auto;-webkit-overflow-scrolling:touch;
+    padding:20px 22px calc(20px + env(safe-area-inset-bottom));color:var(--ink);font-size:13px;line-height:1.6; }
+  .modal h2{ font-size:17px;margin:0;display:inline-block; }
+  .modal h3{ font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:18px 0 5px; }
+  .modal p{ margin:0 0 8px; }
+  .modal a{ color:var(--accent);text-decoration:none; }
+  .modal .x{ float:right;width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+    background:var(--surface);color:var(--ink);font-size:16px;line-height:1;cursor:pointer; }
 
   /* Status-Toast (Gesichtserkennung) – sichtbar auch bei geschlossenem Menü */
   #toast{
@@ -198,7 +213,42 @@
 </div>
 
 <a class="credit" href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a>
+<a class="credit r" id="infoBtn">INFO</a>
 <div id="toast"></div>
+
+<div class="modal" id="infoModal" hidden>
+  <div class="card">
+    <button class="x" id="infoClose" aria-label="Close">×</button>
+    <h2>Deface</h2>
+    <p>A privacy tool to pixelate (mosaic) sensitive areas of a photo — faces, plates,
+       documents. Everything runs locally in your browser.</p>
+
+    <h3>Privacy</h3>
+    <p>All processing happens on your device. Images are <b>never uploaded</b> and never
+       leave the browser. Optional face detection also runs locally; the model and runtime
+       are served from this site itself. There is <b>no tracking and no analytics</b>, and
+       the app works fully offline once loaded.</p>
+    <p>Note: pixelation is not cryptographically secure — see the <i>Secure</i> slider and
+       use a coarse block / solid mode for stronger anonymization.</p>
+
+    <h3>License</h3>
+    <p>Deface is open source under the <b>MIT License</b>. © 2026 Ben Pohl.<br>
+       Source: <a href="https://github.com/BenPohlBasel/deface" target="_blank" rel="noopener">github.com/BenPohlBasel/deface</a></p>
+
+    <h3>Third-party software</h3>
+    <p>· <b>onnxruntime-web</b> — face-detection runtime (WASM). MIT License, © Microsoft.<br>
+       · <b>SCRFD</b> face-detection model (<i>scrfd_2.5g</i>) from <b>InsightFace</b> —
+       intended for research / non-commercial use; review the upstream terms before any
+       commercial use.</p>
+
+    <h3>How it works</h3>
+    <p>Pixelation uses layered HTML canvases (block mosaic + alpha mask). The optional
+       on-device face detector (SCRFD via onnxruntime-web) only suggests regions — you
+       refine them with the brush / erase.</p>
+
+    <p style="margin-top:16px;color:var(--muted)">Made with care · <a href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a></p>
+  </div>
+</div>
 
 <input type="file" id="file" accept="image/jpeg,image/*">
 
@@ -666,6 +716,12 @@ function setMenu(open){
 }
 menuBtn.onclick=()=>setMenu(panel.hidden);
 setMenu(true);   // Start mit offenem Menü, damit „Laden" sichtbar ist
+
+// ---------- Info-Modal ------------------------------------------------------
+const infoModal=document.getElementById('infoModal');
+document.getElementById('infoBtn').onclick=()=>{ infoModal.hidden=false; };
+document.getElementById('infoClose').onclick=()=>{ infoModal.hidden=true; };
+infoModal.onclick=e=>{ if(e.target===infoModal) infoModal.hidden=true; };   // Backdrop-Klick schliesst
 
 // ---------- Sichern --------------------------------------------------------
 document.getElementById('save').onclick=async ()=>{
