@@ -8,7 +8,9 @@ Everything runs locally in the browser – **no images are ever uploaded.**
 
 ## Features
 
-- **Load an image** (JPG/PNG), automatically scaled to a max long edge of 4000 px.
+- **Load an image** (JPG/PNG). Editing/display run at a ~2000 px working resolution
+  (low GPU memory); the original is re-decoded at full resolution (up to 4000 px)
+  only at **save** time, so exports stay sharp.
 - **Pixelate & erase** with one finger – the mosaic is revealed through a soft brush mask.
 - **Pixel size** selectable (4 / 16 / 32 / 64 / 128).
 - **Brush size** is image-relative (stays tied to image content while zooming) and the

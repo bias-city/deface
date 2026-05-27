@@ -471,21 +471,28 @@ function scheduleTransform(){
   requestAnimationFrame(()=>{ tfPending=false; applyTransform(); });
 }
 
-// ---------- Laden (mit Downscale + EXIF-Orientierung) ----------------------
-const MAX_EDGE = 4000;   // volle Auflösung – Speicher ist dank Block-Mosaik + ohne Undo niedrig
+// ---------- Laden -----------------------------------------------------------
+// Anzeige/Bearbeitung laufen in ARBEITSAUFLÖSUNG (WORK_EDGE) → wenig GPU-Speicher.
+// Das Original wird NICHT als Voll-Canvas gehalten; beim Speichern wird es frisch
+// in voller Auflösung (FULL_EDGE) aus der Datei decodiert.
+const WORK_EDGE = 2000;   // Anzeige/Verarbeitung
+const FULL_EDGE = 4000;   // Export
+let srcBlob=null, fullW=0, fullH=0;
 const fileEl=document.getElementById('file');
 document.getElementById('load').onclick=()=>fileEl.click();
 fileEl.onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
-  currentName=(f.name||'bild').replace(/\.[^.]+$/,'');
+  srcBlob=f; currentName=(f.name||'bild').replace(/\.[^.]+$/,'');
   let bmp;
   try{ bmp=await createImageBitmap(f,{imageOrientation:'from-image'}); }
   catch(_){ bmp=await createImageBitmap(f); }
-  let w=bmp.width,h=bmp.height; const long=Math.max(w,h);
-  if(long>MAX_EDGE){ const k=MAX_EDGE/long; w=Math.round(w*k); h=Math.round(h*k); }
-  imgW=w; imgH=h;
+  const ow=bmp.width, oh=bmp.height, long=Math.max(ow,oh);
+  const kf = long>FULL_EDGE ? FULL_EDGE/long : 1;          // Export-Auflösung
+  fullW=Math.round(ow*kf); fullH=Math.round(oh*kf);
+  const kw = long>WORK_EDGE ? WORK_EDGE/long : 1;          // Arbeits-/Anzeige-Auflösung
+  imgW=Math.round(ow*kw); imgH=Math.round(oh*kw);
 
-  // Layer-Canvas auf Bildauflösung + CSS-Größe = Bildpixel (Transform skaliert)
+  // Layer-Canvas auf Arbeitsauflösung + CSS-Größe = Bildpixel (Transform skaliert)
   const layerCanvases = mouseHover ? [base,over,pv] : [base,over];   // pv nur bei Maus
   for(const cv of layerCanvases){ cv.width=imgW; cv.height=imgH; cv.style.width=imgW+'px'; cv.style.height=imgH+'px'; }
   layers.style.width=imgW+'px'; layers.style.height=imgH+'px';
@@ -608,9 +615,17 @@ setMenu(true);   // Start mit offenem Menü, damit „Laden" sichtbar ist
 
 // ---------- Sichern --------------------------------------------------------
 document.getElementById('save').onclick=async ()=>{
-  const out=document.createElement('canvas'); out.width=imgW; out.height=imgH;
+  // Original frisch in voller Auflösung decodieren (nicht dauerhaft gehalten),
+  // dann die Verpixelung (Arbeitsauflösung) hart hochskaliert drüberlegen.
+  let bmp;
+  try{ bmp=await createImageBitmap(srcBlob,{imageOrientation:'from-image'}); }
+  catch(_){ bmp=await createImageBitmap(srcBlob); }
+  const out=document.createElement('canvas'); out.width=fullW; out.height=fullH;
   const o=out.getContext('2d');
-  o.drawImage(base,0,0); o.drawImage(over,0,0);
+  o.imageSmoothingEnabled=true; o.imageSmoothingQuality='high';
+  o.drawImage(bmp,0,0,fullW,fullH); bmp.close();                 // scharfes Original
+  o.imageSmoothingEnabled=false;
+  o.drawImage(over, 0,0,imgW,imgH, 0,0,fullW,fullH);             // Verpixelung hochskaliert
   const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',0.92));
   const fname=currentName+'-deface.jpg';
   const fileObj=new File([blob],fname,{type:'image/jpeg'});
