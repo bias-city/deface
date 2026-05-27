@@ -549,7 +549,7 @@ fileEl.onchange=async e=>{
   ['reset','fit','save','detect'].forEach(id=>document.getElementById(id).disabled=false);
   clearFaceMarkers();
   fitImage(); setMenu(false); fileEl.value='';   // Menü zu → nur Bild
-  setTimeout(detectFaces,300);   // Auto-Erkennung beim Laden (kurz warten, bis Lade-Speicher settled)
+  setTimeout(()=>detectFaces(true),300);   // Auto-Erkennung beim Laden (+ Pinsel auf Gesichtsbreite)
 };
 
 // ---------- Toolbar --------------------------------------------------------
@@ -724,7 +724,7 @@ function scrfdInput(){
   }
   return { input:a, scale, padX, padY };
 }
-async function detectFaces(){
+async function detectFaces(autoBrush){
   if(!hasImage || detecting) return;
   detecting=true; detectBtn.disabled=true;
   let worker=null;
@@ -751,6 +751,15 @@ async function detectFaces(){
       kctx.beginPath(); kctx.ellipse(cx,cy,((x2-x1)/2)*mskx,((y2-y1)/2)*msky,0,0,6.2832); kctx.fill();
     }
     renderFaceMarkers();
+    // Pinseldurchmesser beim Laden auf die mittlere Gesichts-Breite setzen (sonst Default)
+    if(autoBrush){
+      let pct=12;
+      if(faceBoxes.length){
+        const avgW=faceBoxes.reduce((s,b)=>s+(b[2]-b[0]),0)/faceBoxes.length;
+        pct=Math.max(1,Math.min(60, Math.round(avgW/Math.min(imgW,imgH)*100)));
+      }
+      brushPct=pct; brushEl.value=pct; brushVal.textContent=pct+' %';
+    }
     rebuildOver();
     detSay(result.boxes.length ? ('Find faces · '+result.boxes.length+' ✓') : 'No faces found');
   }catch(e){ console.error(e); detSay('Detection failed'); }
@@ -758,7 +767,7 @@ async function detectFaces(){
   setTimeout(detHide,2200);
   detectBtn.disabled=false; detecting=false;
 }
-detectBtn.onclick=detectFaces;
+detectBtn.onclick=()=>detectFaces(false);   // Refresh: Pinsel nicht überschreiben
 
 // ---------- Service Worker -------------------------------------------------
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
