@@ -44,6 +44,11 @@
   }
   .brushring.show{ opacity:1; }
 
+  /* Gesichts-Rahmen: reines DOM-Overlay (NICHT im Export, nur Anzeige) */
+  #faces{ position:absolute;inset:0;pointer-events:none;z-index:5; }
+  #faces .f{ position:absolute;border:2px solid var(--accent);border-radius:5px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.45), 0 0 8px rgba(139,125,245,.5); }
+
   /* Menü-Knopf: immer erreichbar, dezent über dem Bild */
   .menubtn{
     position:absolute;z-index:20;top:calc(env(safe-area-inset-top) + 12px);right:12px;
@@ -116,6 +121,7 @@
   </div>
   <div class="empty" id="empty">Load a photo to start<br>· one finger: paint · two fingers: zoom</div>
   <div class="brushring" id="brushring"></div>
+  <div id="faces"></div>
 </div>
 
 <button class="menubtn" id="menuBtn" aria-label="Menu">
@@ -200,6 +206,8 @@ const sctx   = samp.getContext('2d',{willReadFrequently:true});
 
 let imgW=0,imgH=0,hasImage=false,currentName='bild';
 let mskx=1,msky=1;   // Maske↔Bild-Skalierung (Maske liegt in reduzierter Auflösung vor)
+const facesEl=document.getElementById('faces');   // Gesichts-Rahmen-Overlay (nur Anzeige)
+let faceBoxes=[];                                  // erkannte Boxen in Arbeits-Bildkoordinaten
 
 // ---------- Transform (nur CSS, GPU macht das Zoomen) ----------------------
 let scale=1, tx=0, ty=0, minScale=0.05, maxScale=40;
@@ -207,7 +215,23 @@ let ringVisible=false;
 function applyTransform(){
   layers.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
   if(ringVisible) styleRing();   // Ring-Durchmesser hängt vom Zoom ab
+  if(faceBoxes.length) placeFaceMarkers();
 }
+// Gesichts-Rahmen (DOM, screen-space → scharfe Linien unabhängig vom Zoom)
+function placeFaceMarkers(){
+  const els=facesEl.children;
+  for(let i=0;i<els.length && i<faceBoxes.length;i++){
+    const b=faceBoxes[i], s=els[i].style;
+    s.left=(b[0]*scale+tx)+'px'; s.top=(b[1]*scale+ty)+'px';
+    s.width=((b[2]-b[0])*scale)+'px'; s.height=((b[3]-b[1])*scale)+'px';
+  }
+}
+function renderFaceMarkers(){
+  facesEl.innerHTML='';
+  for(let i=0;i<faceBoxes.length;i++){ const d=document.createElement('div'); d.className='f'; facesEl.appendChild(d); }
+  placeFaceMarkers();
+}
+function clearFaceMarkers(){ faceBoxes=[]; facesEl.innerHTML=''; }
 
 // ---------- Mosaik vorberechnen --------------------------------------------
 // Das Mosaik wird NUR in Blockauflösung gespeichert (eine Farbe je Kachel) –
@@ -508,7 +532,9 @@ fileEl.onchange=async e=>{
 
   hasImage=true; empty.style.display='none';
   ['reset','fit','save','detect'].forEach(id=>document.getElementById(id).disabled=false);
+  clearFaceMarkers();
   fitImage(); setMenu(false); fileEl.value='';   // Menü zu → nur Bild
+  detectFaces();   // Gesichtserkennung läuft automatisch beim Laden (Button = Refresh)
 };
 
 // ---------- Toolbar --------------------------------------------------------
@@ -600,7 +626,7 @@ function previewRing(){ ringCenter(); showRing(); clearTimeout(ringTimer); ringT
 brushEl.oninput=()=>{ brushPct=+brushEl.value; brushVal.textContent=brushPct+' %'; previewRing(); };
 hardEl.oninput =()=>{ hardness=+hardEl.value/100; hardVal.textContent='soft → hard · '+hardEl.value+' %'; buildSprite(); previewRing(); };
 
-document.getElementById('reset').onclick=()=>{ kctx.clearRect(0,0,mask.width,mask.height); rebuildOver(); };
+document.getElementById('reset').onclick=()=>{ kctx.clearRect(0,0,mask.width,mask.height); clearFaceMarkers(); rebuildOver(); };
 document.getElementById('fit').onclick=fitImage;
 
 // ---------- Menü ein-/ausblenden -------------------------------------------
@@ -653,6 +679,7 @@ const SCRFD_URL='./models/scrfd_2.5g_kps.onnx', SC_IN=640;
 const detectBtn=document.getElementById('detect');
 const detSay=t=>{ detectBtn.textContent=t; };
 let scrfdModel=null;   // ArrayBuffer (~3 MB) – einmal laden, wiederverwenden
+let detecting=false;   // verhindert überlappende Läufe (Auto-Run + Button)
 
 async function getModel(){
   if(scrfdModel) return scrfdModel;
@@ -681,8 +708,8 @@ function scrfdInput(){
   return { input:a, scale, padX, padY };
 }
 async function detectFaces(){
-  if(!hasImage) return;
-  detectBtn.disabled=true;
+  if(!hasImage || detecting) return;
+  detecting=true; detectBtn.disabled=true;
   let worker=null;
   try{
     const model=await getModel();
@@ -695,21 +722,24 @@ async function detectFaces(){
       worker.postMessage({model, input:pre.input}, [pre.input.buffer]);   // input transferieren, model kopieren
     });
     if(result.error) throw new Error(result.error);
+    faceBoxes=[];
     kctx.globalCompositeOperation='source-over'; kctx.fillStyle='#000';
     for(const box of result.boxes){                         // Boxen im 640er-System
       let [x1,y1,x2,y2]=box;
       x1=(x1-pre.padX)/pre.scale; y1=(y1-pre.padY)/pre.scale;   // Letterbox → Bildkoordinaten
       x2=(x2-pre.padX)/pre.scale; y2=(y2-pre.padY)/pre.scale;
       const ex=(x2-x1)*0.18, ey=(y2-y1)*0.18; x1-=ex;y1-=ey;x2+=ex;y2+=ey;   // ~18% grösser
+      faceBoxes.push([x1,y1,x2,y2]);                          // für Rahmen-Overlay (Arbeitskoordinaten)
       const cx=((x1+x2)/2)*mskx, cy=((y1+y2)/2)*msky;          // Ellipse ins (¼-)Masken-Raster
       kctx.beginPath(); kctx.ellipse(cx,cy,((x2-x1)/2)*mskx,((y2-y1)/2)*msky,0,0,6.2832); kctx.fill();
     }
+    renderFaceMarkers();
     rebuildOver();
     detSay(result.boxes.length ? ('Find faces · '+result.boxes.length+' ✓') : 'No faces found');
   }catch(e){ console.error(e); detSay('Detection failed'); }
   if(worker) worker.terminate();   // WASM-Heap komplett freigeben → Zoom bleibt stabil
   setTimeout(()=>detSay('Find faces'),2500);
-  detectBtn.disabled=false;
+  detectBtn.disabled=false; detecting=false;
 }
 detectBtn.onclick=detectFaces;
 
