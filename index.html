@@ -237,14 +237,12 @@
 
     <h3>Third-party software</h3>
     <p>· <b>onnxruntime-web</b> — face-detection runtime (WASM). MIT License, © Microsoft.<br>
-       · <b>SCRFD / InsightFace</b> — the SCRFD <i>code</i> is MIT, but the bundled
-       pretrained model (<i>scrfd_2.5g</i>) is licensed by InsightFace for
-       <b>non-commercial research use only</b>. For commercial use, replace it with a
-       face detector under a permissive (e.g. MIT/Apache) license.</p>
+       · <b>YuNet</b> face-detection model (OpenCV Zoo) — MIT License. Suitable for
+       commercial use.</p>
 
     <h3>How it works</h3>
     <p>Pixelation uses layered HTML canvases (block mosaic + alpha mask). The optional
-       on-device face detector (SCRFD via onnxruntime-web) only suggests regions — you
+       on-device face detector (YuNet via onnxruntime-web) only suggests regions — you
        refine them with the brush / erase.</p>
 
     <p style="margin-top:16px;color:var(--muted)">Made with care · <a href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a></p>
@@ -753,35 +751,35 @@ document.getElementById('save').onclick=async ()=>{
   setTimeout(()=>URL.revokeObjectURL(url),4000);
 };
 
-// ---------- Gesichtserkennung: SCRFD 2.5g via onnxruntime-web (im Worker) ----
+// ---------- Gesichtserkennung: YuNet via onnxruntime-web (im Worker) --------
 // Die Inferenz läuft in einem Web Worker (siehe detect-worker.js), der nach
 // JEDER Erkennung beendet wird → der grosse WASM-Heap wird vollständig
 // freigegeben. Der Hauptthread (Canvases) bleibt schlank, der Zoom stabil.
-// Modell-I/O verifiziert: Input "images"[1,3,640,640]; out0..out8 =
-// [score×3, bbox×3, kps×3] für Strides 8/16/32, 2 Anchors. Decode/NMS-Mathematik
-// isoliert in Node getestet.
-const SCRFD_URL='./models/scrfd_2.5g_kps.onnx', SC_IN=640;
+// Modell-I/O verifiziert: Input "input"[1,3,640,640]; je Stride 8/16/32
+// cls_/obj_/bbox_/kps_ (1 Prior/Zelle). Decode (√(cls·obj), exp-bbox) + Box-
+// Rückrechnung mit echtem Gesicht in Python verifiziert. Decode liegt im Worker.
+const MODEL_URL='./models/yunet.onnx', SC_IN=640;   // YuNet (OpenCV Zoo, MIT)
 const detectBtn=document.getElementById('detect');
 const toastEl=document.getElementById('toast');
 const detSay=t=>{ detectBtn.textContent=t; toastEl.textContent=t; toastEl.classList.add('show'); };
 const detHide=()=>{ toastEl.classList.remove('show'); detectBtn.textContent='Find faces'; };
-let scrfdModel=null;   // ArrayBuffer (~3 MB) – einmal laden, wiederverwenden
+let detModel=null;   // ArrayBuffer (~3 MB) – einmal laden, wiederverwenden
 let detecting=false;   // verhindert überlappende Läufe (Auto-Run + Button)
 
 async function getModel(){
-  if(scrfdModel) return scrfdModel;
+  if(detModel) return detModel;
   detSay('Loading model… 0%');
-  const resp=await fetch(SCRFD_URL);
-  const total=+resp.headers.get('content-length')||3291017;
+  const resp=await fetch(MODEL_URL);
+  const total=+resp.headers.get('content-length')||232589;
   const reader=resp.body.getReader(); const chunks=[]; let got=0;
   for(;;){ const {done,value}=await reader.read(); if(done) break;
     chunks.push(value); got+=value.length; detSay('Loading model… '+Math.min(100,Math.round(got/total*100))+'%'); }
   const buf=new Uint8Array(got); let o=0; for(const c of chunks){ buf.set(c,o); o+=c.length; }
-  scrfdModel=buf.buffer;
-  return scrfdModel;
+  detModel=buf.buffer;
+  return detModel;
 }
-// base → 640er Letterbox, RGB, (x-127.5)/128, NCHW → rohes Float32Array (kein ort im Hauptthread)
-function scrfdInput(){
+// base → 640er Letterbox, BGR, 0–255 (KEINE Normalisierung), NCHW → rohes Float32Array
+function detInput(){
   const iw=imgW, ih=imgH, S=SC_IN;
   const scale=Math.min(S/iw,S/ih), nw=Math.round(iw*scale), nh=Math.round(ih*scale);
   const padX=Math.floor((S-nw)/2), padY=Math.floor((S-nh)/2);
@@ -790,7 +788,7 @@ function scrfdInput(){
   x.imageSmoothingEnabled=true; x.drawImage(base,0,0,iw,ih, padX,padY,nw,nh);
   const d=x.getImageData(0,0,S,S).data, plane=S*S, a=new Float32Array(3*plane);
   for(let i=0,p=0;i<plane;i++,p+=4){
-    a[i]=(d[p]-127.5)/128; a[i+plane]=(d[p+1]-127.5)/128; a[i+2*plane]=(d[p+2]-127.5)/128;
+    a[i]=d[p+2]; a[i+plane]=d[p+1]; a[i+2*plane]=d[p];   // B, G, R (YuNet: BGR, 0–255)
   }
   return { input:a, scale, padX, padY };
 }
@@ -801,7 +799,7 @@ async function detectFaces(autoBrush){
   try{
     const model=await getModel();
     detSay('Detecting…');
-    const pre=scrfdInput();
+    const pre=detInput();
     worker=new Worker('detect-worker.js');
     const result=await new Promise((res,rej)=>{
       worker.onmessage=ev=>res(ev.data);

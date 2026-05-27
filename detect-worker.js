@@ -1,18 +1,23 @@
-// SCRFD-Inferenz in einem Worker. Wird vom Hauptthread nach jeder Erkennung
-// per terminate() beendet → der WASM-Heap (onnxruntime-web) wird vollständig
-// freigegeben. So bleibt der Hauptthread (Canvases) schlank und der Zoom stabil.
-const SC_IN = 640, SC_STRIDES = [8, 16, 32], SC_ANCHORS = 2, SC_SCORE = 0.5, SC_NMS = 0.4;
+// YuNet-Gesichtserkennung in einem Worker. Wird vom Hauptthread nach jeder
+// Erkennung per terminate() beendet → der WASM-Heap (onnxruntime-web) wird
+// vollständig freigegeben, der Hauptthread (Canvases) bleibt schlank.
+// YuNet (OpenCV Zoo, MIT). Outputs je Stride 8/16/32: cls_/obj_/bbox_/kps_,
+// 1 Prior je Zelle. Decode in Node/Python mit echtem Gesicht verifiziert.
+const IN = 640, STRIDES = [8, 16, 32], SCORE = 0.6, NMS_THR = 0.3;
 
-function decode(out) {
+function decode(res) {
   const boxes = [], scores = [];
-  for (let si = 0; si < SC_STRIDES.length; si++) {
-    const s = SC_STRIDES[si], sc = out['out' + si], bb = out['out' + (si + 3)];
-    const fw = Math.floor(SC_IN / s), N = fw * fw * SC_ANCHORS;
-    for (let n = 0; n < N; n++) {
-      const score = sc[n]; if (score < SC_SCORE) continue;
-      const pos = (n / SC_ANCHORS) | 0, col = pos % fw, row = (pos / fw) | 0, cx = col * s, cy = row * s;
-      const l = bb[n*4]*s, t = bb[n*4+1]*s, r = bb[n*4+2]*s, b = bb[n*4+3]*s;
-      boxes.push([cx - l, cy - t, cx + r, cy + b]); scores.push(score);
+  for (const s of STRIDES) {
+    const cls = res['cls_' + s].data, obj = res['obj_' + s].data, bb = res['bbox_' + s].data;
+    const W = IN / s, N = cls.length;
+    for (let i = 0; i < N; i++) {
+      let c = cls[i] < 0 ? 0 : cls[i] > 1 ? 1 : cls[i];
+      let o = obj[i] < 0 ? 0 : obj[i] > 1 ? 1 : obj[i];
+      const score = Math.sqrt(c * o); if (score < SCORE) continue;
+      const row = (i / W) | 0, col = i % W;
+      const cx = (col + bb[i*4]) * s, cy = (row + bb[i*4+1]) * s;     // Zentrum
+      const w = Math.exp(bb[i*4+2]) * s, h = Math.exp(bb[i*4+3]) * s; // Breite/Höhe (exp)
+      boxes.push([cx - w/2, cy - h/2, cx + w/2, cy + h/2]); scores.push(score);
     }
   }
   return { boxes, scores };
@@ -33,16 +38,14 @@ function nms(boxes, scores, thr) {
 self.onmessage = async (e) => {
   try {
     importScripts('./ort/ort.min.js');
-    // SIMD NICHT erzwingen → ORT erkennt selbst und nimmt auf älterem iOS den
-    // Nicht-SIMD-Build (ort-wasm.wasm). Single-Thread (kein SharedArrayBuffer).
+    // SIMD nicht erzwingen → ORT nimmt auf älterem iOS den Nicht-SIMD-Build.
     ort.env.wasm.wasmPaths = './ort/'; ort.env.wasm.numThreads = 1;
-    const { model, input } = e.data;     // model: ArrayBuffer, input: Float32Array (640er NCHW)
+    const { model, input } = e.data;     // model: ArrayBuffer, input: Float32Array (640er NCHW, BGR 0-255)
     const s = await ort.InferenceSession.create(new Uint8Array(model), { executionProviders: ['wasm'] });
-    const feeds = {}; feeds[s.inputNames[0]] = new ort.Tensor('float32', input, [1, 3, SC_IN, SC_IN]);
+    const feeds = {}; feeds[s.inputNames[0]] = new ort.Tensor('float32', input, [1, 3, IN, IN]);
     const res = await s.run(feeds);
-    const out = {}; for (let i = 0; i < 6; i++) out['out' + i] = res['out' + i].data;   // nur score+bbox
-    const { boxes, scores } = decode(out);
-    const keep = nms(boxes, scores, SC_NMS);
+    const { boxes, scores } = decode(res);
+    const keep = nms(boxes, scores, NMS_THR);
     try { await s.release(); } catch (_) {}
     self.postMessage({ boxes: keep.map(i => boxes[i]) });   // Boxen im 640er-Koordinatensystem
   } catch (err) {

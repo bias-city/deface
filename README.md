@@ -18,9 +18,10 @@ Everything runs locally in the browser – **no images are ever uploaded.**
 - **Live preview** of the actual pixelation under the cursor (desktop) plus a brush ring.
 - **Zoom & pan**: two fingers on touch, trackpad pinch / mouse wheel on desktop.
 - **Reset & fit**, and a fully collapsible menu. (To correct a region, switch the tool to *Erase*.)
-- **Find faces** (optional): on-device face detection (SCRFD via onnxruntime-web)
-  stamps suggested mask blobs over detected faces; refine with paint/erase. Fully
-  local — no upload. First use loads ~14 MB (engine + model), then cached offline.
+- **Find faces** (automatic on load): on-device face detection (YuNet, MIT, via
+  onnxruntime-web) frames faces and stamps suggested mask blobs; refine with paint/erase.
+  Fully local — no upload. First use loads the engine (~11 MB) + model (~230 KB), then
+  cached offline.
 - **Privacy modes** (*Standard* / *Secure*): see below.
 - **Save**: share sheet on iOS/iPadOS ("Save to Photos"), direct download on desktop.
 - **Offline-capable** via a service worker (cache-first).
@@ -91,16 +92,17 @@ The app will then be available at `https://<user>.github.io/deface/`.
 
 ## Face detection (offline)
 
-The optional *Find faces* button runs [SCRFD](https://github.com/deepinsight/insightface)
-(`scrfd_2.5g`, ~3 MB, with keypoints) locally via
+The optional *Find faces* button runs [YuNet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet)
+(OpenCV Zoo, ~230 KB) locally via
 [onnxruntime-web](https://github.com/microsoft/onnxruntime) (WASM, single-thread for
-iOS Safari). Both are self-hosted under `ort/` and `models/` (no CDN, no runtime
-request to third parties). The image never leaves the device. Detected boxes are
-enlarged ~18 % and stamped as ellipses into the mask as a starting point — correct
-them with the brush / *Erase*.
+iOS Safari, run in a terminable Web Worker so the heap is freed afterwards). Both are
+self-hosted under `ort/` and `models/` (no CDN, no runtime request to third parties).
+The image never leaves the device. Detection runs automatically on load; detected boxes
+are enlarged ~18 % and stamped as ellipses into the mask, and faces are framed with a
+DOM overlay (never part of the export). Refine with the brush / *Erase*.
 
-The detection math (SCRFD distance-to-bbox decode, letterbox round-trip, NMS) is
-verified by an isolated Node test before integration.
+The YuNet decode (√(cls·obj) score, exp-bbox over strides 8/16/32) and the box
+round-trip were verified against a real face before integration.
 
 ## License
 
@@ -108,7 +110,4 @@ verified by an isolated Node test before integration.
 
 Bundled third-party software keeps its own license:
 - **onnxruntime-web** — MIT (© Microsoft).
-- **SCRFD / InsightFace** — the SCRFD *code* is MIT, but the bundled pretrained model
-  (`scrfd_2.5g`) is licensed by InsightFace for **non-commercial research use only**
-  ("the models trained with these data are available for non-commercial research purposes
-  only"). For commercial use, swap in a face detector under a permissive license.
+- **YuNet** face-detection model (OpenCV Zoo) — MIT. Suitable for commercial use.
