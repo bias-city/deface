@@ -1,6 +1,6 @@
 // Canvas JPG – Service Worker
 // Cache-First für die App-Hülle, damit die PWA offline vom Homescreen startet.
-const CACHE = 'deface-v19';
+const CACHE = 'deface-v20';
 const ASSETS = [
   './',
   './index.html',
