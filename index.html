@@ -113,6 +113,17 @@
     color:var(--muted);opacity:.75;padding:4px 2px;transition:color .15s,opacity .15s;
   }
   .credit:hover{ color:var(--accent);opacity:1; }
+
+  /* Status-Toast (Gesichtserkennung) – sichtbar auch bei geschlossenem Menü */
+  #toast{
+    position:absolute;z-index:30;top:calc(env(safe-area-inset-top) + 14px);left:50%;
+    transform:translateX(-50%) translateZ(0);
+    background:rgba(20,20,28,.92);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+    padding:8px 16px;font-size:13px;font-weight:600;white-space:nowrap;pointer-events:none;
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    opacity:0;transition:opacity .2s;
+  }
+  #toast.show{ opacity:1; }
 </style>
 </head>
 <body>
@@ -174,6 +185,7 @@
 </div>
 
 <a class="credit" href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a>
+<div id="toast"></div>
 
 <input type="file" id="file" accept="image/jpeg,image/*">
 
@@ -537,7 +549,7 @@ fileEl.onchange=async e=>{
   ['reset','fit','save','detect'].forEach(id=>document.getElementById(id).disabled=false);
   clearFaceMarkers();
   fitImage(); setMenu(false); fileEl.value='';   // Menü zu → nur Bild
-  detectFaces();   // Gesichtserkennung läuft automatisch beim Laden (Button = Refresh)
+  setTimeout(detectFaces,300);   // Auto-Erkennung beim Laden (kurz warten, bis Lade-Speicher settled)
 };
 
 // ---------- Toolbar --------------------------------------------------------
@@ -680,7 +692,9 @@ document.getElementById('save').onclick=async ()=>{
 // isoliert in Node getestet.
 const SCRFD_URL='./models/scrfd_2.5g_kps.onnx', SC_IN=640;
 const detectBtn=document.getElementById('detect');
-const detSay=t=>{ detectBtn.textContent=t; };
+const toastEl=document.getElementById('toast');
+const detSay=t=>{ detectBtn.textContent=t; toastEl.textContent=t; toastEl.classList.add('show'); };
+const detHide=()=>{ toastEl.classList.remove('show'); detectBtn.textContent='Find faces'; };
 let scrfdModel=null;   // ArrayBuffer (~3 MB) – einmal laden, wiederverwenden
 let detecting=false;   // verhindert überlappende Läufe (Auto-Run + Button)
 
@@ -741,7 +755,7 @@ async function detectFaces(){
     detSay(result.boxes.length ? ('Find faces · '+result.boxes.length+' ✓') : 'No faces found');
   }catch(e){ console.error(e); detSay('Detection failed'); }
   if(worker) worker.terminate();   // WASM-Heap komplett freigeben → Zoom bleibt stabil
-  setTimeout(()=>detSay('Find faces'),2500);
+  setTimeout(detHide,2200);
   detectBtn.disabled=false; detecting=false;
 }
 detectBtn.onclick=detectFaces;
