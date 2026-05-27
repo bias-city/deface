@@ -106,5 +106,9 @@ verified by an isolated Node test before integration.
 
 [MIT](LICENSE) © 2026 Ben Pohl
 
-Bundled third-party models/runtime keep their own licenses: onnxruntime-web (MIT),
-SCRFD / InsightFace model (research use; check upstream terms before commercial use).
+Bundled third-party software keeps its own license:
+- **onnxruntime-web** — MIT (© Microsoft).
+- **SCRFD / InsightFace** — the SCRFD *code* is MIT, but the bundled pretrained model
+  (`scrfd_2.5g`) is licensed by InsightFace for **non-commercial research use only**
+  ("the models trained with these data are available for non-commercial research purposes
+  only"). For commercial use, swap in a face detector under a permissive license.
