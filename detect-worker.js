@@ -33,7 +33,9 @@ function nms(boxes, scores, thr) {
 self.onmessage = async (e) => {
   try {
     importScripts('./ort/ort.min.js');
-    ort.env.wasm.wasmPaths = './ort/'; ort.env.wasm.numThreads = 1; ort.env.wasm.simd = true;
+    // SIMD NICHT erzwingen → ORT erkennt selbst und nimmt auf älterem iOS den
+    // Nicht-SIMD-Build (ort-wasm.wasm). Single-Thread (kein SharedArrayBuffer).
+    ort.env.wasm.wasmPaths = './ort/'; ort.env.wasm.numThreads = 1;
     const { model, input } = e.data;     // model: ArrayBuffer, input: Float32Array (640er NCHW)
     const s = await ort.InferenceSession.create(new Uint8Array(model), { executionProviders: ['wasm'] });
     const feeds = {}; feeds[s.inputNames[0]] = new ort.Tensor('float32', input, [1, 3, SC_IN, SC_IN]);

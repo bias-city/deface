@@ -44,10 +44,13 @@
   }
   .brushring.show{ opacity:1; }
 
-  /* Gesichts-Rahmen: reines DOM-Overlay (NICHT im Export, nur Anzeige) */
-  #faces{ position:absolute;inset:0;pointer-events:none;z-index:5; }
+  /* Gesichts-Rahmen: reines DOM-Overlay (NICHT im Export, nur Anzeige).
+     translateZ(0) erzwingt einen eigenen Compositing-Layer, sonst rendert
+     iOS-Safari das Overlay HINTER dem GPU-Layer #layers (will-change). */
+  #faces{ position:absolute;inset:0;pointer-events:none;z-index:10;transform:translateZ(0); }
   #faces .f{ position:absolute;border:2px solid var(--accent);border-radius:5px;
-    box-shadow:0 0 0 1px rgba(0,0,0,.45), 0 0 8px rgba(139,125,245,.5); }
+    box-shadow:0 0 0 1px rgba(0,0,0,.45), 0 0 8px rgba(139,125,245,.5);
+    transform:translateZ(0); }
 
   /* Menü-Knopf: immer erreichbar, dezent über dem Bild */
   .menubtn{
