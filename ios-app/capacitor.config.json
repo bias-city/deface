@@ -1,0 +1,11 @@
+{
+  "appId": "city.bias.deface",
+  "appName": "DeFace Privacy",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always",
+    "scheme": "DeFace",
+    "scrollEnabled": false,
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}
