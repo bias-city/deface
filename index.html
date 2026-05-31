@@ -578,7 +578,11 @@ const fileEl=document.getElementById('file');
 document.getElementById('load').onclick=()=>fileEl.click();
 fileEl.onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
-  srcBlob=f; currentName=(f.name||'bild').replace(/\.[^.]+$/,'');
+  await loadFromBlob(f, f.name);
+};
+// Bild-Quelle: nimmt ein Blob (vom File-Input oder vom nativen Photo-Picker).
+async function loadFromBlob(f, name){
+  srcBlob=f; currentName=(name||'bild').replace(/\.[^.]+$/,'');
   let bmp;
   try{ bmp=await createImageBitmap(f,{imageOrientation:'from-image'}); }
   catch(_){ bmp=await createImageBitmap(f); }
@@ -607,7 +611,7 @@ fileEl.onchange=async e=>{
   clearFaceMarkers();
   fitImage(); setMenu(false); fileEl.value='';   // Menü zu → nur Bild
   setTimeout(()=>detectFaces(true),300);   // Auto-Erkennung beim Laden (+ Pinsel auf Gesichtsbreite)
-};
+}
 
 // ---------- Toolbar --------------------------------------------------------
 document.getElementById('modeSeg').onclick=e=>{
@@ -718,19 +722,22 @@ document.getElementById('infoClose').onclick=()=>{ infoModal.hidden=true; };
 infoModal.onclick=e=>{ if(e.target===infoModal) infoModal.hidden=true; };   // Backdrop-Klick schliesst
 
 // ---------- Sichern --------------------------------------------------------
-document.getElementById('save').onclick=async ()=>{
-  // Original frisch in voller Auflösung decodieren (nicht dauerhaft gehalten),
-  // dann die Verpixelung (Arbeitsauflösung) hart hochskaliert drüberlegen.
+// Komponiert den Export: Original frisch in voller Auflösung decodieren (nicht
+// dauerhaft gehalten), dann die Verpixelung hart hochskaliert drüberlegen.
+async function buildExportBlob(){
   let bmp;
   try{ bmp=await createImageBitmap(srcBlob,{imageOrientation:'from-image'}); }
   catch(_){ bmp=await createImageBitmap(srcBlob); }
   const out=document.createElement('canvas'); out.width=fullW; out.height=fullH;
   const o=out.getContext('2d');
   o.imageSmoothingEnabled=true; o.imageSmoothingQuality='high';
-  o.drawImage(bmp,0,0,fullW,fullH); bmp.close();                 // scharfes Original
+  o.drawImage(bmp,0,0,fullW,fullH); bmp.close();
   o.imageSmoothingEnabled=false;
-  o.drawImage(over, 0,0,imgW,imgH, 0,0,fullW,fullH);             // Verpixelung hochskaliert
-  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',0.92));
+  o.drawImage(over, 0,0,imgW,imgH, 0,0,fullW,fullH);
+  return await new Promise(r=>out.toBlob(r,'image/jpeg',0.92));
+}
+document.getElementById('save').onclick=async ()=>{
+  const blob=await buildExportBlob();
   const fname=currentName+'-deface.jpg';
   const fileObj=new File([blob],fname,{type:'image/jpeg'});
   // Teilen nur auf Touch-Geräten (iPhone/iPad → „In Fotos sichern"). Auf dem
@@ -825,6 +832,9 @@ async function detectFaces(autoBrush){
     }
     rebuildOver();
     detSay(result.boxes.length ? ('Find faces · '+result.boxes.length+' ✓') : 'No faces found');
+    if(result.boxes.length && window.Capacitor?.Plugins?.Haptics){
+      window.Capacitor.Plugins.Haptics.impact({style:'light'}).catch(()=>{});
+    }
   }catch(e){ console.error(e); detSay('Detection failed'); }
   if(worker) worker.terminate();   // WASM-Heap komplett freigeben → Zoom bleibt stabil
   setTimeout(detHide,2200);
@@ -832,7 +842,64 @@ async function detectFaces(autoBrush){
 }
 detectBtn.onclick=()=>detectFaces(false);   // Refresh: Pinsel nicht überschreiben
 
-// ---------- Service Worker -------------------------------------------------
+// ---------- Native iOS bridges (Capacitor; no-op in web/PWA) ----------------
+(function nativeBridges(){
+  const C=window.Capacitor;
+  if(!C || !C.isNativePlatform || !C.isNativePlatform()) return;
+  const P=C.Plugins||{};
+
+  // Splash mit kurzem Fade ausblenden
+  if(P.SplashScreen) P.SplashScreen.hide({fadeOutDuration:250}).catch(()=>{});
+  // Status-Bar zusätzlich per Plugin: heller Text, WebView überlagert die Statusbar
+  if(P.StatusBar){
+    P.StatusBar.setStyle({style:'Light'}).catch(()=>{});
+    P.StatusBar.setOverlaysWebView({overlay:true}).catch(()=>{});
+  }
+
+  // Load → natives Sheet (Take Photo / Photo Library) via Camera-Plugin
+  if(P.Camera){
+    document.getElementById('load').onclick=async ()=>{
+      try{
+        const photo=await P.Camera.getPhoto({
+          source:'Prompt', resultType:'base64', quality:95,
+          allowEditing:false, saveToGallery:false,
+          promptLabelHeader:'DeFace', promptLabelPhoto:'Photo Library', promptLabelPicture:'Take Photo'
+        });
+        if(!photo || !photo.base64String) return;
+        const bin=atob(photo.base64String), arr=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+        const ext=(photo.format||'jpeg').toLowerCase();
+        const blob=new Blob([arr],{type:'image/'+ext});
+        await loadFromBlob(blob,'photo.'+ext);
+      }catch(e){
+        const m=((e&&e.message)||'').toLowerCase();
+        if(m.includes('cancel')||m.includes('user')) return;   // Abbruch ist kein Fehler
+        console.error('Camera error',e);
+      }
+    };
+  }
+
+  // Save → natives Share-Sheet via Share-Plugin (Datei in Cache schreiben, dann teilen)
+  if(P.Share && P.Filesystem){
+    document.getElementById('save').onclick=async ()=>{
+      try{
+        const blob=await buildExportBlob();
+        const fname=currentName+'-deface.jpg';
+        const base64=await new Promise((res,rej)=>{ const r=new FileReader();
+          r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); });
+        const written=await P.Filesystem.writeFile({path:fname,data:base64,directory:'Cache',recursive:true});
+        await P.Share.share({title:'DeFace', url:written.uri, dialogTitle:'Save or share'});
+        if(P.Haptics) P.Haptics.notification({type:'Success'}).catch(()=>{});
+      }catch(e){
+        const m=((e&&e.message)||'').toLowerCase();
+        if(m.includes('cancel')||m.includes('user')) return;
+        console.error('Share error',e);
+      }
+    };
+  }
+})();
+
+// ---------- Service Worker (no-op in Capacitor / capacitor:// scheme) -------
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
 </body>
