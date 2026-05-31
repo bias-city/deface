@@ -74,17 +74,40 @@ face detection model (YuNet, OpenCV Zoo, MIT) is bundled in the app.
 No account/login is required. Image bytes never leave the device.
 ```
 
-## Guideline 4.2 — was an „Native Value" schon drin ist
-- Splash Screen mit eigenem Branding (dunkler Hintergrund + Mosaik-Logo).
-- Statusbar im App-Farbton (UIStatusBarStyleLightContent).
-- `NSPhotoLibrary` / `NSPhotoLibraryAdd` / `NSCameraUsageDescription` korrekt
-  begründet im Info.plist.
-- Privacy Manifest (`PrivacyInfo.xcprivacy`) deklariert „keine Tracking-APIs"
-  und die Required-Reason-APIs, die Capacitor/WebKit intern nutzt.
-- Voll offline lauffähig (Web-Assets gebündelt).
-- On-device-Inferenz mit WebAssembly im Web Worker.
+## Guideline 4.2 — Native Value (was an iOS-Eigenfunktionen drin ist)
 
-Optionale nächste native Schritte (für extra Polish):
-- `@capacitor/share` für robustes natives Share-Sheet.
-- `@capacitor/camera` für „Take Photo to anonymize" als zusätzliche Quelle.
-- `@capacitor/haptics` für Feedback bei „Find faces" und „Save".
+**App-Identität & Look**
+- Branded Splash Screen (dunkler Hintergrund + violettes Mosaik-Logo, 2732×2732 für alle Devices).
+- Status-Bar im App-Farbton (`UIStatusBarStyleLightContent` + `@capacitor/status-bar` programmatisch).
+- App-Icon mit eigenständigem Mosaik-Branding in allen iOS-Grössen (Source 1024).
+- Edge-to-edge WebView (`contentInset: never` + `backgroundColor: #0d0e14`), Safe-Areas via CSS.
+
+**Native Plugins (`@capacitor/*`)**
+- **Camera** — `Load`-Button öffnet das native iOS-Sheet *Take Photo · Photo Library · Cancel*; echte Live-Kamera-Aufnahme im Workflow.
+- **Share** + **Filesystem** — `Save`-Button öffnet das System-Share-Sheet (Save to Photos, AirDrop, Messages, Files …); Datei wird vorab in den App-Cache geschrieben.
+- **Haptics** — Light Impact nach erfolgreicher Gesichtserkennung, Success Notification nach dem Sichern.
+- **SplashScreen** — sanftes Fade-out (250 ms), kein abrupter Switch.
+- **Browser** — externe Links (BIAS.CITY, GitHub, Privacy Policy) öffnen in einem `SFSafariViewController`, User bleibt im App-Kontext.
+
+**Privacy & Berechtigungen**
+- `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`, `NSCameraUsageDescription` mit nutzerverständlichen Begründungen.
+- `PrivacyInfo.xcprivacy` deklariert: kein Tracking, keine Datenerhebung; Required-Reason-APIs (UserDefaults CA92.1, FileTimestamp C617.1, SystemBootTime 35F9.1, DiskSpace E174.1) korrekt für Capacitor/WebKit-Interna.
+- Komplett offline-fähig — kein Server-Request zur Laufzeit, Modell ist im Bundle.
+
+**On-device-Substanz**
+- Gesichtserkennung **YuNet** (OpenCV Zoo, MIT) via **onnxruntime-web** (WASM, single-thread, iOS-Safari-tauglich) in einem **Web Worker, der nach jeder Erkennung terminiert** → kein wachsender WASM-Heap, Zoom bleibt stabil.
+- 4000-px-Voll-Auflösung-Export, Arbeitsauflösung 2000 px für GPU-Speicher-Sparsamkeit.
+
+## Accessibility (relevant für Review + App-Store-Description)
+
+| Standard | Status | Wie umgesetzt |
+|---|---|---|
+| **VoiceOver-Labels** | ✓ | `aria-label` auf Sliders (Brush size, Brush edge, Secure scramble), auf der Canvas-Stage; `aria-label` auf Menu-/Info-/Load-/Save-Buttons; dekorative Overlays mit `aria-hidden="true"`. |
+| **Tap-Targets ≥ 44 pt** (Apple HIG) | ✓ | Segment-Buttons (Pixel size, Tool) `min-height: 44px`; Top-Buttons Load/Save/Settings sind 46×46. |
+| **Reduce Motion** | ✓ | `@media (prefers-reduced-motion: reduce)` deaktiviert alle Transitions auf 0.01 ms. |
+| **Kontrast (WCAG AA)** | ✓ Text · ⚠ UI-Borders | Normaler Text ≥ 4.5 : 1 erfüllt. Ghost-Button-Borders bewusst dezent (~2 : 1) — Text in Buttons trägt die Lesbarkeit. |
+| **Color-only-Information** | ✓ | Aktive Zustände kombinieren Farbe + Schriftgewicht + Hintergrundfüllung — nie nur Farbe. |
+| **Dynamic Type** | ⚠ teilweise | Feste `px`-Schriftgrössen, kein Dynamic-Type-Mapping. (Optional Verbesserung.) |
+
+In der App-Store-Description erwähnenswert:
+> *Supports VoiceOver, Reduce Motion, and 44pt-minimum touch targets.*
