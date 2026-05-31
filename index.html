@@ -214,33 +214,36 @@
 <div class="modal" id="infoModal" hidden>
   <div class="card">
     <button class="x" id="infoClose" aria-label="Close">×</button>
-    <h2>Deface</h2>
-    <p>A privacy tool to pixelate (mosaic) sensitive areas of a photo — faces, plates,
-       documents. Everything runs locally in your browser.</p>
+    <h2>DeFace Privacy</h2>
+    <p>Anonymize sensitive areas of a photo — faces, plates, documents — with a brush
+       or automatic face detection. Everything runs <b>on your device</b>.</p>
 
     <h3>Privacy</h3>
-    <p>All processing happens on your device. Images are <b>never uploaded</b> and never
-       leave the browser. Optional face detection also runs locally; the model and runtime
-       are served from this site itself. There is <b>no tracking and no analytics</b>, and
-       the app works fully offline once loaded.</p>
-    <p>Note: pixelation is not cryptographically secure — see the <i>Secure</i> slider and
-       use a coarse block / solid mode for stronger anonymization.</p>
+    <p>Your photos are <b>never uploaded</b> and never leave the device. The face-
+       detection model and runtime are <b>bundled in the app</b>; no network is used while
+       working. There is <b>no tracking, no analytics, no account, no ads</b>.</p>
+    <p>iOS asks for permission only when you tap <i>Load</i> (Photo Library / Camera)
+       or <i>Save</i> (Save to Photos). The app accesses nothing else.</p>
+    <p>Note: pixelation is not cryptographically secure — for stronger anonymization
+       use a coarse pixel size and the <i>Secure scramble</i> slider.</p>
 
     <h3>License</h3>
-    <p>Deface is open source under the <b>MIT License</b>. © 2026 Ben Pohl.<br>
+    <p>DeFace is open source under the <b>MIT License</b>. © 2026 Ben Pohl.<br>
        Source: <a href="https://github.com/BenPohlBasel/deface" target="_blank" rel="noopener">github.com/BenPohlBasel/deface</a></p>
 
     <h3>Third-party software</h3>
     <p>· <b>onnxruntime-web</b> — face-detection runtime (WASM). MIT License, © Microsoft.<br>
-       · <b>YuNet</b> face-detection model (OpenCV Zoo) — MIT License. Suitable for
-       commercial use.</p>
+       · <b>YuNet</b> face-detection model (OpenCV Zoo) — MIT License.<br>
+       · <b>Capacitor</b> by Ionic — MIT License (iOS app shell).</p>
 
     <h3>How it works</h3>
-    <p>Pixelation uses layered HTML canvases (block mosaic + alpha mask). The optional
-       on-device face detector (YuNet via onnxruntime-web) only suggests regions — you
-       refine them with the brush / erase.</p>
+    <p>The original image is kept at full resolution for export; editing happens at a
+       working resolution to stay fast. The optional face detector (YuNet via
+       onnxruntime-web) only <i>suggests</i> regions — refine them with the brush or
+       erase.</p>
 
-    <p style="margin-top:16px;color:var(--muted)">Made with care · <a href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a></p>
+    <p style="margin-top:16px;color:var(--muted)">Built with care ·
+       <a href="https://bias.city" target="_blank" rel="noopener">BIAS.CITY</a></p>
   </div>
 </div>
 
