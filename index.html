@@ -853,6 +853,21 @@ detectBtn.onclick=()=>detectFaces(false);   // Refresh: Pinsel nicht überschrei
   // Status-Bar: heller Text. (setOverlaysWebView ist Android-only → nicht aufrufen.)
   if(P.StatusBar) P.StatusBar.setStyle({style:'LIGHT'}).catch(()=>{});
 
+  // Externe Links (BIAS.CITY, GitHub im Info-Modal usw.) im nativen Safari-Sheet
+  // öffnen statt im WKWebView (sonst funktionieren sie gar nicht oder fangen den
+  // Nutzer in der fremden Seite).
+  if(P.Browser){
+    document.addEventListener('click', e=>{
+      const a = e.target && e.target.closest && e.target.closest('a[href]');
+      if(!a) return;
+      const href = a.getAttribute('href') || '';
+      if(/^https?:\/\//i.test(href)){
+        e.preventDefault();
+        P.Browser.open({ url: href }).catch(()=>{});
+      }
+    }, true);
+  }
+
   // Load → natives Sheet (Take Photo / Photo Library) via Camera-Plugin
   if(P.Camera){
     document.getElementById('load').onclick=async ()=>{
