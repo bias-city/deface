@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d0e14">
+<title>DeFace Privacy — Privacy Policy</title>
+<style>
+  :root{
+    --bg:#0d0e14; --panel:#161823; --surface:#1b1d29; --line:#262a38;
+    --ink:#e9eaf0; --muted:#7b8298; --accent:#8b7df5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.65;}
+  main{max-width:680px;margin:0 auto;padding:48px 22px 80px;}
+  h1{font-size:28px;margin:0 0 4px;font-weight:700;letter-spacing:-.01em;}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 32px;letter-spacing:.04em;text-transform:uppercase;}
+  h2{font-size:15px;margin:30px 0 6px;font-weight:700;color:var(--accent);}
+  p{margin:0 0 12px;font-size:15px;}
+  a{color:var(--accent);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  ul{padding-left:22px;margin:0 0 12px;}
+  li{margin:0 0 6px;}
+  b{color:#fff;font-weight:600;}
+  .updated{color:var(--muted);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:16px;}
+  .back{display:inline-block;margin-bottom:24px;color:var(--muted);font-size:13px;letter-spacing:.04em;text-transform:uppercase;}
+  .back:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← DeFace Privacy</a>
+  <h1>Privacy Policy</h1>
+  <p class="sub">DeFace Privacy · App and Web</p>
+
+  <p><b>Short version:</b> DeFace Privacy collects nothing. Your photos never leave your
+     device. There is no account, no tracking, no analytics, no ads, no third-party
+     servers contacted at runtime.</p>
+
+  <h2>What data we collect</h2>
+  <p><b>None.</b> The app does not collect, store, transmit, or share any personal
+     data, image data, device identifiers, usage statistics, crash reports, or any
+     other information about you.</p>
+
+  <h2>How your images are handled</h2>
+  <p>Images you load into the app stay <b>entirely on your device</b>. All
+     processing — pixelation, brush editing, face detection, saving — happens
+     locally. Nothing is uploaded to any server. No image leaves your device
+     unless you yourself send it via the system Share sheet.</p>
+
+  <h2>Device permissions</h2>
+  <p>iOS asks for permission only when you take a specific action:</p>
+  <ul>
+    <li><b>Photo Library</b> — when you tap <i>Load</i> to choose an existing photo.</li>
+    <li><b>Camera</b> — when you tap <i>Load</i> → <i>Take Photo</i> to capture a new image.</li>
+    <li><b>Add to Photo Library</b> — when you tap <i>Save</i> to write the result back
+        to your photos.</li>
+  </ul>
+  <p>No other data sources or sensors are accessed.</p>
+
+  <h2>Network usage</h2>
+  <p>The app does not contact any server while you use it. The face-detection
+     model and runtime are <b>bundled inside the app</b>; nothing is downloaded at
+     runtime. The web version (PWA) downloads the same bundled assets once from
+     the same site (no third-party CDN) and then runs offline.</p>
+
+  <h2>Third-party software</h2>
+  <p>The app embeds the following open-source libraries and models. They run
+     entirely on-device and do not connect to any service:</p>
+  <ul>
+    <li><a href="https://github.com/microsoft/onnxruntime" target="_blank" rel="noopener">onnxruntime-web</a>
+        — face-detection runtime (WASM), MIT License, © Microsoft.</li>
+    <li><a href="https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet" target="_blank" rel="noopener">YuNet</a>
+        — face-detection model (OpenCV Zoo), MIT License.</li>
+    <li><a href="https://capacitorjs.com" target="_blank" rel="noopener">Capacitor</a>
+        by Ionic — iOS app shell, MIT License.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>The app is suitable for all ages and does not knowingly collect any data
+     from anyone, including children under 13. No accounts, no profiles, no
+     communication features.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will be published at this URL with
+     an updated date. Since no data is collected, changes will essentially only
+     clarify wording.</p>
+
+  <h2>Open source</h2>
+  <p>DeFace Privacy is open source under the MIT License. You can review the
+     entire source code, including the privacy-relevant parts, at
+     <a href="https://github.com/BenPohlBasel/deface" target="_blank" rel="noopener">github.com/BenPohlBasel/deface</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Questions or privacy concerns: please open an issue at
+     <a href="https://github.com/BenPohlBasel/deface/issues" target="_blank" rel="noopener">github.com/BenPohlBasel/deface/issues</a>.</p>
+
+  <p class="updated">Last updated: 31 May 2026 · © 2026 Ben Pohl</p>
+</main>
+</body>
+</html>
