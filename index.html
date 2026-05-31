@@ -878,28 +878,9 @@ detectBtn.onclick=()=>detectFaces(false);   // Refresh: Pinsel nicht überschrei
     }, true);
   }
 
-  // Load → natives Sheet (Take Photo / Photo Library) via Camera-Plugin
-  if(P.Camera){
-    document.getElementById('load').onclick=async ()=>{
-      try{
-        const photo=await P.Camera.getPhoto({
-          source:'PROMPT', resultType:'base64', quality:95,
-          allowEditing:false, saveToGallery:false,
-          promptLabelHeader:'DeFace', promptLabelPhoto:'Photo Library', promptLabelPicture:'Take Photo'
-        });
-        if(!photo || !photo.base64String) return;
-        const bin=atob(photo.base64String), arr=new Uint8Array(bin.length);
-        for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-        const ext=(photo.format||'jpeg').toLowerCase();
-        const blob=new Blob([arr],{type:'image/'+ext});
-        await loadFromBlob(blob,'photo.'+ext);
-      }catch(e){
-        const m=((e&&e.message)||'').toLowerCase();
-        if(m.includes('cancel')||m.includes('user')) return;   // Abbruch ist kein Fehler
-        console.error('Camera error',e);
-      }
-    };
-  }
+  // Load bleibt der Web-`<input type="file">` — iOS' eigener Image-Picker zeigt
+  // in WKWebView von Haus aus Photo Library / Take Photo / Choose File (Dateien).
+  // Damit decken wir alle drei Quellen ab, der Camera-Plugin-Picker kann das nicht.
 
   // Save → natives Share-Sheet via Share-Plugin (Datei in Cache schreiben, dann teilen)
   if(P.Share && P.Filesystem){
