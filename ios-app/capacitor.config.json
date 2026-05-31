@@ -2,10 +2,12 @@
   "appId": "city.bias.deface",
   "appName": "DeFace Privacy",
   "webDir": "www",
+  "backgroundColor": "#0d0e14",
   "ios": {
-    "contentInset": "always",
+    "contentInset": "never",
     "scheme": "DeFace",
     "scrollEnabled": false,
-    "limitsNavigationsToAppBoundDomains": false
+    "limitsNavigationsToAppBoundDomains": false,
+    "backgroundColor": "#0d0e14"
   }
 }
