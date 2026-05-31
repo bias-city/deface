@@ -12,7 +12,7 @@
 <title>Deface</title>
 <style>
   :root{
-    --bg:#0d0e14; --panel:#161823; --surface:#1b1d29; --line:#3a4156;
+    --bg:#0d0e14; --panel:#161823; --surface:#1b1d29; --line:#4a526b;
     --ink:#e9eaf0; --muted:#7b8298; --accent:#8b7df5; --accent-ink:#10111a;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;
@@ -95,8 +95,9 @@
   .seg{display:flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;}
   .seg button{
     flex:1;appearance:none;border:0;background:transparent;color:var(--muted);
-    font-family:inherit;font-size:13px;font-weight:500;letter-spacing:.01em;padding:9px 6px;
+    font-family:inherit;font-size:13px;font-weight:500;letter-spacing:.01em;padding:13px 6px;
     cursor:pointer;border-radius:9px;transition:background .16s,color .16s;
+    min-height:44px;   /* Apple HIG Tap-Target */
   }
   .seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600;}
 
@@ -112,11 +113,16 @@
     font-family:inherit;font-size:13px;font-weight:500;letter-spacing:.01em;padding:12px 4px;border-radius:11px;
     cursor:pointer;transition:transform .08s,background .16s,border-color .16s;
   }
-  .row button:hover{ border-color:#4a516a; }
+  .row button:hover{ border-color:#5a6480; }
   .row button:active{transform:scale(.97);}
   .row .primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600;}
   .row button:disabled{opacity:.35;pointer-events:none;}
   input[type=file]{display:none;}
+
+  /* Wenn der User in iOS „Reduce Motion" aktiviert hat, keine Übergänge animieren */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+  }
 
   /* Dezenter Credit-Link unten links (vom Menü-Sheet verdeckt, wenn offen) */
   .credit{
@@ -154,15 +160,15 @@
 </style>
 </head>
 <body>
-<div class="stage" id="stage">
+<div class="stage" id="stage" aria-label="Photo canvas — paint with one finger to pixelate, zoom with two fingers">
   <div id="layers">
     <canvas id="base"></canvas>     <!-- Originalbild -->
     <canvas id="over"></canvas>     <!-- Mosaik durch Maske -->
     <canvas id="preview"></canvas>  <!-- Live-Vorschau unter dem Cursor -->
   </div>
   <div class="empty" id="empty">Load a photo to start<br>· one finger: paint · two fingers: zoom</div>
-  <div class="brushring" id="brushring"></div>
-  <div id="faces"></div>
+  <div class="brushring" id="brushring" aria-hidden="true"></div>
+  <div id="faces" aria-hidden="true"></div>
 </div>
 
 <div class="topleft">
@@ -187,7 +193,7 @@
   </div>
 
   <div class="lbl">Secure scramble <span class="val" id="secNote">off</span></div>
-  <input type="range" id="sec" min="0" max="7" value="0" step="1">
+  <input type="range" id="sec" min="0" max="7" value="0" step="1" aria-label="Secure scramble strength">
 
   <div class="lbl">Tool</div>
   <div class="seg" id="modeSeg">
@@ -196,10 +202,10 @@
   </div>
 
   <div class="lbl">Brush size <span class="val" id="brushVal">12 %</span></div>
-  <input type="range" id="brush" min="1" max="60" value="12">
+  <input type="range" id="brush" min="1" max="60" value="12" aria-label="Brush size (percent of image)">
 
   <div class="lbl">Brush edge <span class="val" id="hardVal">soft → hard · 65 %</span></div>
-  <input type="range" id="hard" min="0" max="100" value="65">
+  <input type="range" id="hard" min="0" max="100" value="65" aria-label="Brush edge (soft to hard)">
 
   <div class="row">
     <button id="fit" disabled>Fit</button>
