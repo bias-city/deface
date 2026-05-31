@@ -833,7 +833,7 @@ async function detectFaces(autoBrush){
     rebuildOver();
     detSay(result.boxes.length ? ('Find faces · '+result.boxes.length+' ✓') : 'No faces found');
     if(result.boxes.length && window.Capacitor?.Plugins?.Haptics){
-      window.Capacitor.Plugins.Haptics.impact({style:'light'}).catch(()=>{});
+      window.Capacitor.Plugins.Haptics.impact({style:'LIGHT'}).catch(()=>{});
     }
   }catch(e){ console.error(e); detSay('Detection failed'); }
   if(worker) worker.terminate();   // WASM-Heap komplett freigeben → Zoom bleibt stabil
@@ -850,18 +850,15 @@ detectBtn.onclick=()=>detectFaces(false);   // Refresh: Pinsel nicht überschrei
 
   // Splash mit kurzem Fade ausblenden
   if(P.SplashScreen) P.SplashScreen.hide({fadeOutDuration:250}).catch(()=>{});
-  // Status-Bar zusätzlich per Plugin: heller Text, WebView überlagert die Statusbar
-  if(P.StatusBar){
-    P.StatusBar.setStyle({style:'Light'}).catch(()=>{});
-    P.StatusBar.setOverlaysWebView({overlay:true}).catch(()=>{});
-  }
+  // Status-Bar: heller Text. (setOverlaysWebView ist Android-only → nicht aufrufen.)
+  if(P.StatusBar) P.StatusBar.setStyle({style:'LIGHT'}).catch(()=>{});
 
   // Load → natives Sheet (Take Photo / Photo Library) via Camera-Plugin
   if(P.Camera){
     document.getElementById('load').onclick=async ()=>{
       try{
         const photo=await P.Camera.getPhoto({
-          source:'Prompt', resultType:'base64', quality:95,
+          source:'PROMPT', resultType:'base64', quality:95,
           allowEditing:false, saveToGallery:false,
           promptLabelHeader:'DeFace', promptLabelPhoto:'Photo Library', promptLabelPicture:'Take Photo'
         });
@@ -887,9 +884,9 @@ detectBtn.onclick=()=>detectFaces(false);   // Refresh: Pinsel nicht überschrei
         const fname=currentName+'-deface.jpg';
         const base64=await new Promise((res,rej)=>{ const r=new FileReader();
           r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); });
-        const written=await P.Filesystem.writeFile({path:fname,data:base64,directory:'Cache',recursive:true});
+        const written=await P.Filesystem.writeFile({path:fname,data:base64,directory:'CACHE',recursive:true});
         await P.Share.share({title:'DeFace', url:written.uri, dialogTitle:'Save or share'});
-        if(P.Haptics) P.Haptics.notification({type:'Success'}).catch(()=>{});
+        if(P.Haptics) P.Haptics.notification({type:'SUCCESS'}).catch(()=>{});
       }catch(e){
         const m=((e&&e.message)||'').toLowerCase();
         if(m.includes('cancel')||m.includes('user')) return;
