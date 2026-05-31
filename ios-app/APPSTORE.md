@@ -50,21 +50,13 @@ face,pixelate,privacy,blur,anonymize,mosaic,redact,offline,GDPR,photo,hide,black
 |---|---|
 | Support URL | `https://github.com/BenPohlBasel/deface` |
 | Marketing URL | `https://benpohlbasel.github.io/deface/` |
-| Privacy Policy URL | Pflicht — siehe „Privacy Policy" unten |
+| Privacy Policy URL | `https://benpohlbasel.github.io/deface/privacy.html` |
 
 ## Privacy Policy
-Apple verlangt eine erreichbare URL. Da wir nichts sammeln, reicht eine kurze
-Seite. Vorschlag: in den GitHub-Pages-Ordner eine `privacy.html` legen mit:
-
-```
-DeFace Privacy collects no personal data. The app processes images entirely
-on your device. No data, image, or analytics is sent to any server. Face
-detection runs locally; the model is bundled in the app. The app does not
-contain advertising, trackers, or third-party SDKs that collect personal data.
-Contact: <your email>.
-```
-
-URL wäre dann z. B. `https://benpohlbasel.github.io/deface/privacy.html`.
+Liegt im Repo unter `privacy.html` und ist live auf GitHub Pages erreichbar.
+Sie deckt: nichts gesammelt, Bilder bleiben on-device, exakte Permission-
+Begründung pro Aktion, gebündelte Third-Party-Libs (onnxruntime-web, YuNet,
+Capacitor), Kinder, Änderungen, Open-Source-Quellen, Kontakt über Repo-Issues.
 
 ## App Privacy (im App-Store-Connect-Formular)
 - **Data Used to Track You** → *None*
