@@ -48,9 +48,9 @@ face,pixelate,privacy,blur,anonymize,mosaic,redact,offline,GDPR,photo,hide,black
 ## URLs
 | Feld | Wert |
 |---|---|
-| Support URL | `https://github.com/BenPohlBasel/deface` |
-| Marketing URL | `https://benpohlbasel.github.io/deface/` |
-| Privacy Policy URL | `https://benpohlbasel.github.io/deface/privacy.html` |
+| Support URL | `https://github.com/bias-city/deface` |
+| Marketing URL | `https://bias-city.github.io/deface/` |
+| Privacy Policy URL | `https://bias-city.github.io/deface/privacy.html` |
 
 ## Privacy Policy
 Liegt im Repo unter `privacy.html` und ist live auf GitHub Pages erreichbar.
